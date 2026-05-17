@@ -5,40 +5,70 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --xm-black: #050505;
-  --xm-dark: #0a0a0f;
-  --xm-card: rgba(255,255,255,0.04);
-  --xm-card-hover: rgba(255,255,255,0.07);
-  --xm-gold: #34C759;
-  --xm-gold-light: #6EE7B7;
-  --xm-bronze: #b8864e;
-  --xm-silver: #8E8E93;
-  --xm-accent: #58A6FF;
-  --xm-border: rgba(255,255,255,0.08);
-  --xm-text-primary: #FFFFFF;
-  --xm-text-secondary: #8E8E93;
+  /* Apple Light Mode */
+  --xm-canvas: #ffffff;
+  --xm-canvas-parchment: #f5f5f7;
+  --xm-ink: #1d1d1f;
+  --xm-ink-muted: #7a7a7a;
+  --xm-body: #1d1d1f;
+  --xm-body-muted: #86868b;
+  --xm-primary: #0066cc;
+  --xm-primary-hover: #0071e3;
+  --xm-primary-on-dark: #2997ff;
+  --xm-border: #e0e0e0;
+  --xm-border-soft: #f0f0f0;
+  --xm-surface-pearl: #fafafc;
+  --xm-card-bg: #ffffff;
+  --xm-card-border: rgba(0,0,0,0.08);
+  --xm-bottom-nav: rgba(255,255,255,0.95);
+  --xm-bottom-nav-border: rgba(0,0,0,0.06);
+  --xm-success: #34C759;
+  --xm-accent: #0066cc;
+}
+
+.dark {
+  /* Apple Dark Mode */
+  --xm-canvas: #000000;
+  --xm-canvas-parchment: #1d1d1f;
+  --xm-ink: #ffffff;
+  --xm-ink-muted: #86868b;
+  --xm-body: #ffffff;
+  --xm-body-muted: #86868b;
+  --xm-primary: #2997ff;
+  --xm-primary-hover: #0071e3;
+  --xm-primary-on-dark: #2997ff;
+  --xm-border: #424245;
+  --xm-border-soft: #333336;
+  --xm-surface-pearl: #1d1d1f;
+  --xm-card-bg: #1c1c1e;
+  --xm-card-border: rgba(255,255,255,0.1);
+  --xm-bottom-nav: rgba(0,0,0,0.95);
+  --xm-bottom-nav-border: rgba(255,255,255,0.06);
+  --xm-success: #30D158;
+  --xm-accent: #2997ff;
 }
 
 * { box-sizing: border-box; }
-
 html { font-size: 16px; -webkit-text-size-adjust: 100%; }
 
 body {
-  background: #050505;
-  color: #FFFFFF;
-  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--xm-canvas);
+  color: var(--xm-body);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   min-height: 100dvh;
   overflow-x: hidden;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
+/* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: var(--xm-border); border-radius: 2px; }
 
 .safe-top { padding-top: env(safe-area-inset-top); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 
-/* Radial gradient glow behind main content */
+/* Background glow (dark mode only) */
 .bg-glow {
   position: fixed;
   top: -20%;
@@ -46,9 +76,13 @@ body {
   transform: translateX(-50%);
   width: 800px;
   height: 600px;
-  background: radial-gradient(ellipse at center, rgba(88, 166, 255, 0.12) 0%, rgba(45, 27, 77, 0.15) 40%, transparent 70%);
+  background: radial-gradient(ellipse at center, rgba(41, 151, 255, 0.08) 0%, rgba(0, 0, 0, 0) 70%);
   pointer-events: none;
   z-index: 0;
+}
+
+.dark .bg-glow {
+  background: radial-gradient(ellipse at center, rgba(41, 151, 255, 0.12) 0%, rgba(0, 0, 0, 0) 70%);
 }
 
 @layer components {
@@ -56,98 +90,132 @@ body {
     @apply mx-auto max-w-lg px-4;
   }
 
-  /* Glass card */
+  /* Apple-style cards */
   .xm-card {
-    @apply rounded-2xl p-4;
-    background: rgba(255,255,255,0.04);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255,255,255,0.08);
+    @apply rounded-[18px] p-4;
+    background: var(--xm-card-bg);
+    border: 1px solid var(--xm-card-border);
+    transition: background 0.3s ease, border-color 0.3s ease;
   }
 
   .xm-card-gold {
-    background: rgba(255,255,255,0.04);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(52, 199, 89, 0.3);
+    @apply rounded-[18px] p-4;
+    background: var(--xm-card-bg);
+    border: 1px solid var(--xm-primary);
   }
 
-  /* Buttons */
+  /* Apple-style buttons */
   .xm-btn {
-    @apply rounded-[9999px] px-5 py-2.5 text-sm font-medium transition-all active:scale-95;
-    font-family: 'Inter', system-ui, sans-serif;
+    @apply rounded-full px-5 py-2.5 text-sm font-medium transition-all active:scale-95;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 
   .xm-btn-primary {
     @apply xm-btn;
-    background: #FFFFFF;
-    color: #050505;
+    background: var(--xm-primary);
+    color: #ffffff;
   }
 
   .xm-btn-secondary {
     @apply xm-btn;
-    background: rgba(255,255,255,0.06);
-    color: #FFFFFF;
-    border: 1px solid rgba(255,255,255,0.1);
+    background: var(--xm-surface-pearl);
+    color: var(--xm-ink);
+    border: 1px solid var(--xm-border-soft);
   }
 
   .xm-btn-danger {
     @apply xm-btn;
-    background: rgba(255, 0, 0, 0.1);
-    color: #FF4444;
-    border: 1px solid rgba(255, 0, 0, 0.2);
+    background: rgba(255, 59, 48, 0.1);
+    color: #FF3B30;
+    border: 1px solid rgba(255, 59, 48, 0.2);
   }
 
+  /* Apple-style input */
   .xm-input {
-    @apply w-full rounded-xl px-4 py-3 text-sm outline-none transition-colors;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: #FFFFFF;
+    @apply w-full rounded-full px-5 py-3 text-[17px] outline-none transition-colors;
+    background: var(--xm-canvas);
+    border: 1px solid var(--xm-border);
+    color: var(--xm-ink);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 
-  .xm-input:focus { border-color: rgba(255,255,255,0.3); }
-  .xm-input::placeholder { color: #8E8E93; }
+  .xm-input:focus { border-color: var(--xm-primary); }
+  .xm-input::placeholder { color: var(--xm-body-muted); }
 
-  /* Bottom nav */
+  /* Bottom nav - Apple style */
   .nav-item {
-    @apply flex flex-col items-center gap-1 text-xs transition-colors;
-    color: #8E8E93;
+    @apply flex flex-col items-center gap-0.5 text-xs transition-colors;
+    color: var(--xm-body-muted);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 
-  .nav-item.active { color: #FFFFFF; }
+  .nav-item.active { color: var(--xm-ink); }
   .nav-item svg { @apply w-5 h-5; }
+
+  /* Apple-style stat labels */
+  .stat-label {
+    @apply text-xs;
+    color: var(--xm-body-muted);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  .stat-value {
+    @apply text-2xl;
+    color: var(--xm-ink);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  /* Category tags */
+  .tag-card {
+    @apply rounded-full px-3 py-0.5 text-[11px] font-medium;
+    background: var(--xm-primary);
+    color: #ffffff;
+  }
+
+  .tag-eticket {
+    @apply rounded-full px-3 py-0.5 text-[11px] font-medium;
+    background: #A855F7;
+    color: #ffffff;
+  }
+
+  /* Price text */
+  .price-accent {
+    color: var(--xm-success);
+    font-weight: 600;
+  }
+
+  /* Item image area */
+  .item-image {
+    @apply rounded-[18px];
+    background: var(--xm-canvas-parchment);
+    aspect-ratio: 16/9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s ease;
+  }
 
   /* Rank badges */
   .rank-bronze { color: #b8864e; }
-  .rank-silver { color: #8E8E93; }
-  .rank-gold { color: #34C759; }
-  .rank-platinum { color: #58A6FF; }
+  .rank-silver { color: var(--xm-body-muted); }
+  .rank-gold { color: var(--xm-success); }
+  .rank-platinum { color: var(--xm-primary); }
   .rank-master {
-    background: linear-gradient(135deg, #34C759, #58A6FF, #34C759);
+    background: linear-gradient(135deg, var(--xm-success), var(--xm-primary), var(--xm-success));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
   /* Rarity indicators */
-  .rarity-common { border-left: 3px solid #8E8E93; }
-  .rarity-rare { border-left: 3px solid #58A6FF; }
+  .rarity-common { border-left: 3px solid var(--xm-body-muted); }
+  .rarity-rare { border-left: 3px solid var(--xm-primary); }
   .rarity-ultra-rare { border-left: 3px solid #9b59b6; }
   .rarity-legendary {
-    border-left: 3px solid #34C759;
+    border-left: 3px solid var(--xm-success);
     box-shadow: 0 0 20px rgba(52, 199, 89, 0.1);
-  }
-
-  /* Small stats labels */
-  .stat-label {
-    @apply text-xs uppercase tracking-wider;
-    color: #8E8E93;
-    font-weight: 600;
-  }
-
-  .stat-value {
-    @apply text-2xl;
-    color: #FFFFFF;
-    font-weight: 500;
   }
 
   @keyframes shimmer {
@@ -156,56 +224,37 @@ body {
   }
 
   .shimmer {
-    background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%);
+    background: linear-gradient(90deg, var(--xm-border-soft) 25%, var(--xm-border) 50%, var(--xm-border-soft) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
   }
-
-  /* Category tags */
-  .tag-card {
-    @apply rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider;
-    background: rgba(96, 165, 250, 0.15);
-    color: #60A5FA;
-  }
-
-  .tag-eticket {
-    @apply rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider;
-    background: rgba(168, 85, 247, 0.15);
-    color: #A855F7;
-  }
-
-  /* Price text */
-  .price-accent {
-    color: #34D399;
-    font-weight: 600;
-  }
-
-  /* Item image area */
-  .item-image {
-    @apply rounded-xl;
-    background: #1a1a1a;
-    aspect-ratio: 16/9;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
 }
 
+/* Bottom navigation bar - Apple style */
 .bottom-nav {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(5, 5, 5, 0.95);
+  background: var(--xm-bottom-nav);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid var(--xm-bottom-nav-border);
   display: flex;
   justify-content: space-around;
   padding: 8px 0 env(safe-area-inset-bottom, 8px);
   z-index: 50;
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .page-content {
   padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
 }
+
+/* Apple-style nav link */
+.nav-link {
+  color: var(--xm-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  transition: opacity 0.2s;
+}
+.nav-link:hover { opacity: 0.7; }
