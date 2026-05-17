@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 
 const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL,
+  connectionString: process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL,
   max: 1,
   idleTimeoutMillis: 10000,
   connectionTimeoutMillis: 10000,
