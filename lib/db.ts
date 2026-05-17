@@ -14,29 +14,17 @@ function ensureNeon(): ReturnType<typeof neon> {
   return _neon;
 }
 
-// Proxy that lazily initializes neon connection on first use
-// Supports: sql`SELECT...` (tagged template) and query('SELECT...', [params])
-const sql = new Proxy({} as ReturnType<typeof neon>, {
-  apply(_target, _thisArg, args: any[]) {
-    try {
-      return (ensureNeon() as any)(...args);
-    } catch (e: any) {
-      console.error('[DB ERROR] sql apply failed:', e?.message || e);
-      throw e;
-    }
-  },
-  get(_target, prop: string | symbol) {
-    if (prop === 'toJSON' || prop === 'then' || prop === Symbol.toPrimitive || prop === 'toString') {
-      return undefined;
-    }
-    try {
-      return (ensureNeon() as any)[prop];
-    } catch (e: any) {
-      console.error('[DB ERROR] sql get failed:', prop.toString(), e?.message || e);
-      throw e;
-    }
+// Simple wrapper that lazily creates neon connection
+function sql(strings: TemplateStringsArray | string, ...values: any[]) {
+  if (typeof strings === 'string') {
+    return (ensureNeon() as any)([strings], ...values);
   }
-}) as unknown as ReturnType<typeof neon>;
+  return (ensureNeon() as any)(strings, ...values);
+}
+// Attach .query() method for parameterized SQL
+sql.query = function(text: string, params?: any[]) {
+  return (ensureNeon() as any).query(text, params);
+} as any;
 
 export { sql };
 
