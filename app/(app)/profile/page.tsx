@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken, UserPayload } from '@/lib/auth';
-import { sql, query } from '@/lib/db';
+import { query } from '@/lib/db';
 import { RANK_NAMES, RANK_THRESHOLDS, PointsTransaction } from '@/lib/types';
 import { clearAuthCookie } from '@/lib/auth';
 import { redirect } from 'next/navigation';

@@ -1,31 +1,25 @@
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { sql } from '@/lib/db';
+import { query } from '@/lib/db';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminAnalytics() {
   const token = getAuthToken();
-  if (!token) redirect('/login');
+  if (!token) return redirect('/login');
   const payload = verifyToken(token);
   if (!payload || !payload.is_admin) redirect('/home');
 
-  const totalUsers = (await sql`SELECT COUNT(*) as c FROM users`)[0].c;
-  const totalCards = (await sql`SELECT COUNT(*) as c FROM cards`)[0].c;
-  const scannedCards = (await sql`SELECT COUNT(*) as c FROM cards WHERE owner_id IS NOT NULL`)[0].c;
-  const totalPoints = (await sql`SELECT SUM(total_points) as s FROM users`)[0].s || 0;
-  const totalListings = (await sql`SELECT COUNT(*) as c FROM marketplace_listings`)[0].c;
-  const soldListings = (await sql`SELECT COUNT(*) as c FROM marketplace_listings WHERE status='sold'`)[0].c;
-  const rankDist = await sql`SELECT rank, COUNT(*) as c FROM users GROUP BY rank`;
-  const rarityDist = await sql`SELECT rarity, COUNT(*) as c FROM cards GROUP BY rarity`;
-  const recentScans = await sql`
-    SELECT pt.*, u.display_name FROM points_transactions pt
-    JOIN users u ON pt.user_id = u.id
-    WHERE pt.reason = 'card_scan'
-    ORDER BY pt.created_at DESC LIMIT 10
-  `;
-
-  const revenueResult = await sql`SELECT SUM(price) as s FROM marketplace_listings WHERE status='sold'`;
+  const totalUsers = (await query('SELECT COUNT(*) as c FROM users'))[0].c;
+  const totalCards = (await query('SELECT COUNT(*) as c FROM cards'))[0].c;
+  const scannedCards = (await query('SELECT COUNT(*) as c FROM cards WHERE owner_id IS NOT NULL'))[0].c;
+  const totalPoints = (await query('SELECT SUM(total_points) as s FROM users'))[0].s || 0;
+  const totalListings = (await query('SELECT COUNT(*) as c FROM marketplace_listings'))[0].c;
+  const soldListings = (await query('SELECT COUNT(*) as c FROM marketplace_listings WHERE status=\'sold\''))[0].c;
+  const rankDist = await query('SELECT rank, COUNT(*) as c FROM users GROUP BY rank');
+  const rarityDist = await query('SELECT rarity, COUNT(*) as c FROM cards GROUP BY rarity');
+  const recentScans = await query('SELECT c.card_code, c.product_name, c.rarity, u.display_name as collector, c.scanned_at FROM cards c LEFT JOIN users u ON c.owner_id = u.id ORDER BY c.scanned_at DESC NULLS LAST LIMIT 20');
+  const revenueResult = await query("SELECT SUM(price) as s FROM marketplace_listings WHERE status='sold'");
   const revenue = (revenueResult[0]?.s)?.toLocaleString() || 0;
 
   return (

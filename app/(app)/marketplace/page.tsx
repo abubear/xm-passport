@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken, UserPayload } from '@/lib/auth';
-import { sql } from '@/lib/db';
+import { query } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,14 +8,9 @@ export default async function MarketplacePage() {
   if (!token) return null;
   const payload = verifyToken(token) as UserPayload;
 
-  const listings = await sql`
-    SELECT ml.*, u.display_name as seller_name, u.collector_number as seller_number
-    FROM marketplace_listings ml
-    JOIN users u ON ml.seller_id = u.id
-    WHERE ml.status = 'active'
-    ORDER BY ml.created_at DESC
-    LIMIT 20
-  ` as any[];
+  const listings = await query(`SELECT ml.*, u.display_name as seller_name, u.collector_number as seller_number FROM marketplace_listings ml JOIN users u ON ml.seller_id = u.id WHERE ml.status = 'active' ORDER BY ml.created_at DESC LIMIT 20`);
+
+  const activeListings = (listings as any[]).filter((l: any) => l.status === 'active').length;
 
   return (
     <div className="xm-container py-6 space-y-6">
@@ -39,7 +34,7 @@ export default async function MarketplacePage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {listings.map((listing) => (
+          {listings.map((listing: any) => (
             <div key={listing.id} className="xm-card">
               <div className="flex items-start justify-between mb-2">
                 <div>
@@ -81,7 +76,7 @@ async function ListingItemDetails({ listing }: { listing: any }) {
     let item;
 
     if (listing.item_type === 'card') {
-      const rows = await sql`SELECT * FROM cards WHERE id = ${listing.item_id}` as any[];
+      const rows = (await query(`SELECT * FROM cards WHERE id = ${listing.item_id}`)) as any[];
       item = rows[0] || null;
       if (!item) return <p className="text-xs text-gray-500">Item unavailable</p>;
       return (
@@ -96,7 +91,7 @@ async function ListingItemDetails({ listing }: { listing: any }) {
     }
 
     if (listing.item_type === 'eticket') {
-      const rows = await sql`SELECT * FROM etickets WHERE id = ${listing.item_id}` as any[];
+      const rows = (await query(`SELECT * FROM etickets WHERE id = ${listing.item_id}`)) as any[];
       item = rows[0] || null;
       if (!item) return <p className="text-xs text-gray-500">Item unavailable</p>;
       return (

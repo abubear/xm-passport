@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { sql } from '@/lib/db';
+import { query } from '@/lib/db';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -10,11 +10,7 @@ export default async function AdminETickets() {
   const payload = verifyToken(token);
   if (!payload || !payload.is_admin) redirect('/home');
 
-  const tickets = await sql`
-    SELECT et.*, u.display_name as owner_name, u.collector_number as owner_number
-    FROM etickets et LEFT JOIN users u ON et.owner_id = u.id
-    ORDER BY et.created_at DESC
-  `;
+  const tickets = await query(`SELECT et.*, u.display_name as owner_name, u.collector_number as owner_number FROM etickets et LEFT JOIN users u ON et.owner_id = u.id ORDER BY et.created_at DESC`);
 
   return (
     <div className="space-y-6">

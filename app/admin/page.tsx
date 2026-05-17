@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { sql } from '@/lib/db';
+import { query } from '@/lib/db';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -10,13 +10,13 @@ export default async function AdminDashboard() {
   const payload = verifyToken(token);
   if (!payload || !payload.is_admin) redirect('/home');
 
-  const users = (await sql`SELECT COUNT(*) as count FROM users`)[0] as { count: number };
-  const cards = (await sql`SELECT COUNT(*) as count FROM cards`)[0] as { count: number };
-  const scannedCards = (await sql`SELECT COUNT(*) as count FROM cards WHERE owner_id IS NOT NULL`)[0] as { count: number };
-  const etickets = (await sql`SELECT COUNT(*) as count FROM etickets`)[0] as { count: number };
-  const listings = (await sql`SELECT COUNT(*) as count FROM marketplace_listings WHERE status = 'active'`)[0] as { count: number };
-  const totalPoints = (await sql`SELECT SUM(total_points) as total FROM users`)[0] as { total: number };
-  const products = (await sql`SELECT COUNT(*) as count FROM products`)[0] as { count: number };
+  const users = (await query(`SELECT COUNT(*) as count FROM users`))[0] as { count: number };
+  const cards = (await query(`SELECT COUNT(*) as count FROM cards`))[0] as { count: number };
+  const scannedCards = (await query(`SELECT COUNT(*) as count FROM cards WHERE owner_id IS NOT NULL`))[0] as { count: number };
+  const etickets = (await query(`SELECT COUNT(*) as count FROM etickets`))[0] as { count: number };
+  const listings = (await query(`SELECT COUNT(*) as count FROM marketplace_listings WHERE status = 'active'`))[0] as { count: number };
+  const totalPoints = (await query(`SELECT SUM(total_points) as total FROM users`))[0] as { total: number };
+  const products = (await query(`SELECT COUNT(*) as count FROM products`))[0] as { count: number };
 
   const stats = [
     { label: 'Users', value: users.count },
@@ -28,7 +28,7 @@ export default async function AdminDashboard() {
     { label: 'Total Points', value: (totalPoints.total || 0).toLocaleString() },
   ];
 
-  const recentUsers = await sql`SELECT * FROM users ORDER BY created_at DESC LIMIT 5`;
+  const recentUsers = await query(`SELECT * FROM users ORDER BY created_at DESC LIMIT 5`);
 
   return (
     <div className="space-y-8">

@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { sql } from '@/lib/db';
+import { query } from '@/lib/db';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -10,13 +10,7 @@ export default async function AdminMarketplace() {
   const payload = verifyToken(token);
   if (!payload || !payload.is_admin) redirect('/home');
 
-  const listings = await sql`
-    SELECT ml.*, s.display_name as seller_name, b.display_name as buyer_name
-    FROM marketplace_listings ml
-    JOIN users s ON ml.seller_id = s.id
-    LEFT JOIN users b ON ml.buyer_id = b.id
-    ORDER BY ml.created_at DESC
-  `;
+  const listings = await query(`SELECT ml.*, s.display_name as seller_name, b.display_name as buyer_name FROM marketplace_listings ml LEFT JOIN users s ON ml.seller_id = s.id LEFT JOIN users b ON ml.buyer_id = b.id ORDER BY ml.created_at DESC`);
 
   const activeListings = (listings as any[]).filter((l: any) => l.status === 'active').length;
   const soldListings = (listings as any[]).filter((l: any) => l.status === 'sold').length;

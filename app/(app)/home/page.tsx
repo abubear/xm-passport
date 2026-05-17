@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken, UserPayload } from '@/lib/auth';
-import { sql, query} from '@/lib/db';
+import { query} from '@/lib/db';
 import { RANK_NAMES, RANK_THRESHOLDS, Card, CollectionJourney } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';

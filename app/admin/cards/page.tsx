@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { sql } from '@/lib/db';
+import { query } from '@/lib/db';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -10,11 +10,7 @@ export default async function AdminCards() {
   const payload = verifyToken(token);
   if (!payload || !payload.is_admin) redirect('/home');
 
-  const cards = await sql`
-    SELECT c.*, u.display_name as owner_name, u.collector_number as owner_number
-    FROM cards c LEFT JOIN users u ON c.owner_id = u.id
-    ORDER BY c.created_at DESC
-  `;
+  const cards = await query('SELECT c.*, u.display_name as owner_name, u.collector_number as owner_number FROM cards c LEFT JOIN users u ON c.owner_id = u.id ORDER BY c.created_at DESC');
 
   const total = cards.length;
   const scanned = (cards as any[]).filter((c: any) => c.owner_id).length;

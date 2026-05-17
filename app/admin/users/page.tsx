@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { sql } from '@/lib/db';
+import { query } from '@/lib/db';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -10,7 +10,7 @@ export default async function AdminUsers() {
   const payload = verifyToken(token);
   if (!payload || !payload.is_admin) redirect('/home');
 
-  const users = await sql`SELECT * FROM users ORDER BY created_at DESC`;
+  const users = await query('SELECT * FROM users ORDER BY created_at DESC');
 
   return (
     <div className="space-y-6">

@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken, UserPayload } from '@/lib/auth';
-import { sql } from '@/lib/db';
+import { query } from '@/lib/db';
 import { Product } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -9,7 +9,7 @@ export default async function DropsPage() {
   if (!token) return null;
   const payload = verifyToken(token) as UserPayload;
 
-  const products = await sql`SELECT * FROM products WHERE status IN ('announced', 'preorder') ORDER BY created_at DESC` as Product[];
+  const products = (await query(`SELECT * FROM products WHERE status IN ('announced', 'preorder') ORDER BY created_at DESC`)) as Product[];
 
   return (
     <div className="xm-container py-6 space-y-6">
