@@ -160,6 +160,35 @@ body {
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
   }
+
+  /* Category tags */
+  .tag-card {
+    @apply rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider;
+    background: rgba(96, 165, 250, 0.15);
+    color: #60A5FA;
+  }
+
+  .tag-eticket {
+    @apply rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider;
+    background: rgba(168, 85, 247, 0.15);
+    color: #A855F7;
+  }
+
+  /* Price text */
+  .price-accent {
+    color: #34D399;
+    font-weight: 600;
+  }
+
+  /* Item image area */
+  .item-image {
+    @apply rounded-xl;
+    background: #1a1a1a;
+    aspect-ratio: 16/9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 .bottom-nav {
