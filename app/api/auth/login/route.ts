@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Provider ID required' }, { status: 400 });
       }
 
-      const rows = await sql(
+      const rows = await query(
         'SELECT * FROM users WHERE auth_provider = $1 AND provider_id = $2',
         [provider, provider_id]
       );

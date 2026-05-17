@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { sql } from '@/lib/db';
+import { sql, query } from '@/lib/db';
 
 export async function GET() {
   const token = getAuthToken();
@@ -10,7 +10,7 @@ export async function GET() {
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const etickets = await sql(
+    const etickets = await query(
       'SELECT * FROM etickets WHERE owner_id = $1 ORDER BY created_at DESC',
       [payload.id]
     );

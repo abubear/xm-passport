@@ -30,7 +30,7 @@ export async function PUT(
     }
 
     // Process purchase - transfer ownership
-    await sql(
+    await query(
       "UPDATE marketplace_listings SET status = 'sold', buyer_id = $1, sold_at = NOW() WHERE id = $2",
       [payload.id, params.id]
     );
@@ -75,7 +75,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Not your listing' }, { status: 403 });
     }
 
-    await sql("UPDATE marketplace_listings SET status = 'cancelled' WHERE id = $1", [params.id]);
+    await query(`UPDATE marketplace_listings SET status = 'cancelled' WHERE id = $1`, [params.id]);
 
     return NextResponse.json({ message: 'Listing cancelled' });
   } catch (err) {

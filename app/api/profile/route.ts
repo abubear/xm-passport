@@ -11,7 +11,7 @@ export async function GET() {
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const userRows = await sql(`
+    const userRows = await query(`
       SELECT id, email, phone, display_name, collector_number, avatar_url,
              bio, location, collection_prefs, public_profile, social_links, language,
              rank, total_points, rank_points, collection_count, verified_collector,
@@ -54,7 +54,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Bio must be under 300 characters' }, { status: 400 });
     }
 
-    await sql(`
+    await query(`
       UPDATE users SET
         display_name = COALESCE(NULLIF($1, ''), display_name),
         bio = COALESCE($2, bio),
@@ -78,7 +78,7 @@ export async function PUT(req: NextRequest) {
       payload.id
     ]);
 
-    const updatedRows = await sql(`
+    const updatedRows = await query(`
       SELECT id, email, phone, display_name, collector_number, avatar_url,
              bio, location, collection_prefs, public_profile, social_links,
              rank, total_points

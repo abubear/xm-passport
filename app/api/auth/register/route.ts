@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       const count = countRows[0] as { count: number };
       const collectorNumber = `XM-${String(Number(count.count) + 1).padStart(5, '0')}`;
 
-      await sql(`
+      await query(`
         INSERT INTO users (id, email, password_hash, display_name, collector_number, auth_provider, rank)
         VALUES ($1, $2, $3, $4, $5, 'email', 'bronze')
       `, [id, email, passwordHash, display_name, collectorNumber]);
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       const count = countRows[0] as { count: number };
       const collectorNumber = `XM-${String(Number(count.count) + 1).padStart(5, '0')}`;
 
-      await sql(`
+      await query(`
         INSERT INTO users (id, phone, display_name, collector_number, auth_provider, rank)
         VALUES ($1, $2, $3, $4, 'phone', 'bronze')
       `, [id, phone, display_name, collectorNumber]);
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Check if already registered with this provider
-      const existingByProviderRows = await sql(
+      const existingByProviderRows = await query(
         'SELECT id FROM users WHERE auth_provider = $1 AND provider_id = $2',
         [provider, provider_id]
       );
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      await sql(`
+      await query(`
         INSERT INTO users (id, email, display_name, collector_number, auth_provider, provider_id, wechat_unionid, rank)
         VALUES ($1, $2, $3, $4, $5, $6, $7, 'bronze')
       `, [id, socialEmail, display_name, collectorNumber, provider, provider_id, wechat_unionid || null]);

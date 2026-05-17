@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     const unionid = `wx_union_${code.slice(0, 8)}`;
 
     // Find by provider_id (openid) or unionid
-    let userRows = await sql(
+    let userRows = await query(
       "SELECT * FROM users WHERE auth_provider = 'wechat' AND (provider_id = $1 OR wechat_unionid = $2)", [openid, unionid]
     );
     let user = userRows[0] || null;
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       const count = Number(countRows[0]?.count || 0);
       const collectorNumber = `XM-${String(count + 1).padStart(5, '0')}`;
 
-      await sql(`
+      await query(`
         INSERT INTO users (id, display_name, collector_number, auth_provider, provider_id, wechat_unionid, rank)
         VALUES ($1, $2, $3, 'wechat', $4, $5, 'bronze')
       `, [id, `WeChat User ${collectorNumber}`, collectorNumber, openid, unionid]);

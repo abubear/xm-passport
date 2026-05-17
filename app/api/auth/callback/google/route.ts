@@ -26,20 +26,20 @@ export async function POST(req: NextRequest) {
     }
 
     // Find by provider
-    let userRows = await sql(
+    let userRows = await query(
       "SELECT * FROM users WHERE auth_provider = 'google' AND provider_id = $1", [sub]
     );
     let user = userRows[0] || null;
 
     // Also check email match (for users who previously registered with email)
     if (!user && email) {
-      const emailRows = await sql(
+      const emailRows = await query(
         "SELECT * FROM users WHERE email = $1 AND auth_provider = 'email'", [email]
       );
       user = emailRows[0] || null;
       if (user) {
         // Link Google to existing email account
-        await sql(
+        await query(
           "UPDATE users SET auth_provider = 'google', provider_id = $1 WHERE id = $2", [sub, user.id]
         );
       }
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       const count = Number(countRows[0]?.count || 0);
       const collectorNumber = `XM-${String(count + 1).padStart(5, '0')}`;
 
-      await sql(`
+      await query(`
         INSERT INTO users (id, email, display_name, avatar_url, collector_number, auth_provider, provider_id, rank)
         VALUES ($1, $2, $3, $4, $5, 'google', $6, 'bronze')
       `, [id, email || `${sub}@google.com`, name || `Collector ${collectorNumber}`, picture || null, collectorNumber, sub]);

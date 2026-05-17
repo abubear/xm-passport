@@ -9,7 +9,7 @@ export async function GET() {
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const listings = await sql(`
+    const listings = await query(`
       SELECT ml.*, u.display_name as seller_name, u.collector_number as seller_number
       FROM marketplace_listings ml
       JOIN users u ON ml.seller_id = u.id
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check for existing active listing
-    const existingRows = await sql(
+    const existingRows = await query(
       'SELECT id FROM marketplace_listings WHERE item_id = $1 AND seller_id = $2 AND status = $3',
       [item_id, payload.id, 'active']
     );
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     }
 
     const id = uuidv4();
-    await sql(
+    await query(
       'INSERT INTO marketplace_listings (id, seller_id, item_type, item_id, price) VALUES ($1, $2, $3, $4, $5)',
       [id, payload.id, item_type, item_id, price]
     );

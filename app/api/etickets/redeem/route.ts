@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Payment required before redemption' }, { status: 400 });
     }
 
-    await sql(`
+    await query(`
       UPDATE etickets SET status = 'redeemed', redemption_date = NOW()
       WHERE id = $1
     `, [ticket_id]);

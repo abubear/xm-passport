@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     const email = `${provider_id}@privaterelay.appleid.com`; // Apple private relay
 
     // Find existing user
-    let userRows = await sql(
+    let userRows = await query(
       "SELECT * FROM users WHERE auth_provider = 'apple' AND provider_id = $1", [provider_id]
     );
     let user = userRows[0] || null;
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
         ? `${fullName.givenName || ''} ${fullName.familyName || ''}`.trim()
         : `Collector ${collectorNumber}`;
 
-      await sql(`
+      await query(`
         INSERT INTO users (id, email, display_name, collector_number, auth_provider, provider_id, rank)
         VALUES ($1, $2, $3, $4, 'apple', $5, 'bronze')
       `, [id, email, displayName || `Collector ${collectorNumber}`, collectorNumber, provider_id]);

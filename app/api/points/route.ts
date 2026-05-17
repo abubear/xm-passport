@@ -10,7 +10,7 @@ export async function GET() {
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const transactions = await sql(
+    const transactions = await query(
       'SELECT * FROM points_transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50',
       [payload.id]
     );

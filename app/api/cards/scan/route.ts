@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Assign card to user
-    await sql(`
+    await query(`
       UPDATE cards SET owner_id = $1, status = 'active', scanned_at = NOW()
       WHERE id = $2
     `, [payload.id, card.id]);
@@ -46,13 +46,13 @@ export async function POST(req: NextRequest) {
     const points = card.rarity ? (RARITY_POINTS[card.rarity as keyof typeof RARITY_POINTS] || card.points_value) : card.points_value;
 
     // Add points transaction
-    await sql(`
+    await query(`
       INSERT INTO points_transactions (id, user_id, amount, reason, reference_id)
       VALUES ($1, $2, $3, 'card_scan', $4)
     `, [uuidv4(), payload.id, points, card.id]);
 
     // Update user points and check rank
-    await sql(`
+    await query(`
       UPDATE users SET
         total_points = total_points + $1,
         collection_count = collection_count + 1,
@@ -103,18 +103,18 @@ async function updateJourneys(userId: string, cardCode: string) {
     if (!required.includes(cardCode)) continue;
 
     // Get or create user journey
-    let userJourneyRows = await sql(
+    let userJourneyRows = await query(
       'SELECT * FROM user_journeys WHERE user_id = $1 AND journey_id = $2',
       [userId, journey.id]
     );
     let userJourney = userJourneyRows[0] || null;
 
     if (!userJourney) {
-      await sql(`
+      await query(`
         INSERT INTO user_journeys (id, user_id, journey_id, progress)
         VALUES ($1, $2, $3, $4)
       `, [uuidv4(), userId, journey.id, '{}']);
-      userJourneyRows = await sql(
+      userJourneyRows = await query(
         'SELECT * FROM user_journeys WHERE user_id = $1 AND journey_id = $2',
         [userId, journey.id]
       );
@@ -130,18 +130,18 @@ async function updateJourneys(userId: string, cardCode: string) {
 
     // Check completion
     if (collected >= required.length && !userJourney.completed) {
-      await sql(`
+      await query(`
         UPDATE user_journeys SET completed = 1, completed_at = NOW()
         WHERE id = $1
       `, [userJourney.id]);
 
       // Award journey points
-      await sql(`
+      await query(`
         INSERT INTO points_transactions (id, user_id, amount, reason, reference_id)
         VALUES ($1, $2, $3, 'journey_complete', $4)
       `, [uuidv4(), userId, journey.reward_points, journey.id]);
 
-      await sql(`
+      await query(`
         UPDATE users SET total_points = total_points + $1, updated_at = NOW()
         WHERE id = $2
       `, [journey.reward_points, userId]);
