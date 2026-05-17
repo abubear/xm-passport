@@ -76,7 +76,7 @@ async function ListingItemDetails({ listing }: { listing: any }) {
     let item;
 
     if (listing.item_type === 'card') {
-      const rows = (await query(`SELECT * FROM cards WHERE id = ${listing.item_id}`)) as any[];
+      const rows = await query(`SELECT * FROM cards WHERE id = $1`, [listing.item_id]) as any[];
       item = rows[0] || null;
       if (!item) return <p className="text-xs text-gray-500">Item unavailable</p>;
       return (
@@ -91,7 +91,7 @@ async function ListingItemDetails({ listing }: { listing: any }) {
     }
 
     if (listing.item_type === 'eticket') {
-      const rows = (await query(`SELECT * FROM etickets WHERE id = ${listing.item_id}`)) as any[];
+      const rows = await query(`SELECT * FROM etickets WHERE id = $1`, [listing.item_id]) as any[];
       item = rows[0] || null;
       if (!item) return <p className="text-xs text-gray-500">Item unavailable</p>;
       return (

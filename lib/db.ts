@@ -191,19 +191,80 @@ export async function seed() {
     { code: 'XM-CARD-0006', name: 'Batman Dark Knight', ip: 'DC Comics', rarity: 'common', points: 100 },
     { code: 'XM-CARD-0007', name: 'Joker Chaos', ip: 'DC Comics', rarity: 'rare', points: 300 },
     { code: 'XM-CARD-0008', name: 'Spider-Man Classic', ip: 'Marvel', rarity: 'common', points: 100 },
+    { code: 'XM-CARD-0009', name: 'Thor Odinson', ip: 'Marvel', rarity: 'ultra-rare', points: 400 },
+    { code: 'XM-CARD-0010', name: 'Darkseid', ip: 'DC Comics', rarity: 'legendary', points: 500 },
+    { code: 'XM-CARD-0011', name: 'Captain America Shield', ip: 'Marvel', rarity: 'rare', points: 300 },
+    { code: 'XM-CARD-0012', name: 'Hulk Smash', ip: 'Marvel', rarity: 'ultra-rare', points: 400 },
+    { code: 'XM-CARD-0013', name: 'Harley Quinn', ip: 'DC Comics', rarity: 'rare', points: 300 },
+    { code: 'XM-CARD-0014', name: 'Black Panther', ip: 'Marvel', rarity: 'common', points: 100 },
+    { code: 'XM-CARD-0015', name: 'Miles Morales', ip: 'Marvel', rarity: 'common', points: 100 },
+    { code: 'XM-CARD-0016', name: 'Superman Red Son', ip: 'DC Comics', rarity: 'legendary', points: 500 },
+    { code: 'XM-CARD-0017', name: 'Doctor Strange', ip: 'Marvel', rarity: 'rare', points: 300 },
+    { code: 'XM-CARD-0018', name: 'Scarlet Witch', ip: 'Marvel', rarity: 'ultra-rare', points: 400 },
+    { code: 'XM-CARD-0019', name: 'The Flash', ip: 'DC Comics', rarity: 'common', points: 100 },
+    { code: 'XM-CARD-0020', name: 'Mega Man', ip: 'Capcom', rarity: 'rare', points: 300 },
+    { code: 'XM-CARD-0021', name: 'Dante DMC5', ip: 'Capcom', rarity: 'ultra-rare', points: 400 },
+    { code: 'XM-CARD-0022', name: 'Guts Berserker', ip: 'Berserk', rarity: 'legendary', points: 500 },
+    { code: 'XM-CARD-0023', name: 'Gandalf the Grey', ip: 'Lord of the Rings', rarity: 'rare', points: 300 },
+    { code: 'XM-CARD-0024', name: 'Aragorn', ip: 'Lord of the Rings', rarity: 'ultra-rare', points: 400 },
+    { code: 'XM-CARD-0025', name: 'He-Man', ip: 'Masters of the Universe', rarity: 'common', points: 100 },
   ];
 
-  for (const card of sampleCards) {
-    try {
-      await sql`INSERT INTO cards (id, card_code, product_name, ip, rarity, card_type, edition_size, points_value, status, owner_id, scanned_at) VALUES (${uuidv4()}, ${card.code}, ${card.name}, ${card.ip}, ${card.rarity}, 'metal', ${card.rarity === 'legendary' ? 100 : 500}, ${card.points}, 'active', ${demoId}, NOW())`;
-    } catch { /* ignore duplicate */ }
+  const existingCards = await sql`SELECT COUNT(*) as count FROM cards`;
+  const cardCount = Number((existingCards as any)[0]?.count || 0);
+  if (cardCount < 8) { // Only seed if first-run
+    for (const card of sampleCards) {
+      try {
+        await sql`INSERT INTO cards (id, card_code, product_name, ip, rarity, card_type, edition_size, points_value, status, owner_id, scanned_at) VALUES (${uuidv4()}, ${card.code}, ${card.name}, ${card.ip}, ${card.rarity}, 'metal', ${card.rarity === 'legendary' ? 100 : 500}, ${card.points}, 'active', ${demoId}, NOW())`;
+      } catch { /* ignore duplicate */ }
+    }
+
+    // Seed e-tickets for demo user
+    const eticketProducts = [
+      'Batman Who Laughs Statue', 'Wonder Woman Golden Armor', 'Iron Man Mark LXXXV',
+      'Darkseid Throne', 'Optimus Prime Truck Mode', 'Thor Stormbreaker',
+    ];
+    for (let i = 0; i < 6; i++) {
+      try {
+        const ticketStatus = i < 3 ? 'redeemed' : 'active';
+        const payment = i < 3 ? 'paid' : 'pending';
+        await sql.query('INSERT INTO etickets (id, ticket_code, product_id, product_name, owner_id, status, payment_status, purchase_price, redemption_date, points_earned) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, ' + (i < 3 ? 'NOW()' : 'NULL') + ', $9)', [
+          uuidv4(), `XM-ET-${String(i+1).padStart(4,'0')}`, uuidv4(),
+          eticketProducts[i], demoId, ticketStatus, payment,
+          Math.floor(Math.random() * 1000) + 500,
+          i < 3 ? 100 : 0,
+        ]);
+      } catch { /* ignore duplicate */ }
+    }
+
+    // Seed marketplace listings
+    const listingItems = [
+      { item: sampleCards[2].code, type: 'card', price: 249, seller: demoId },
+      { item: sampleCards[5].code, type: 'card', price: 89, seller: demoId },
+      { item: sampleCards[7].code, type: 'card', price: 79, seller: demoId },
+      { item: `XM-ET-0004`, type: 'eticket', price: 1599, seller: demoId },
+    ];
+    for (const l of listingItems) {
+      try {
+        const existingList = await sql(`SELECT id FROM marketplace_listings WHERE item_id = $1`, [l.item]);
+        if ((existingList as any).length === 0) {
+          await sql`INSERT INTO marketplace_listings (id, seller_id, item_type, item_id, price, status) VALUES (${uuidv4()}, ${l.seller}, ${l.type}, ${l.item}, ${l.price}, 'active')`;
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Seed points transactions
+    const pointReasons = ['card_scan', 'card_scan', 'card_scan', 'journey_complete', 'card_scan', 'card_scan', 'card_scan', 'bonus'];
+    const pointAmounts = [300, 400, 100, 1000, 500, 300, 100, 200];
+    for (let i = 0; i < pointReasons.length; i++) {
+      try {
+        await sql`INSERT INTO points_transactions (id, user_id, amount, reason, created_at) VALUES (${uuidv4()}, ${demoId}, ${pointAmounts[i]}, ${pointReasons[i]}, NOW() - interval '${String((pointReasons.length - i) * 2)} days')`;
+      } catch { /* ignore */ }
+    }
   }
 
-  // Give demo user points
-  const demoPoints = await sql`SELECT total_points FROM users WHERE id = ${demoId}`;
-  if ((demoPoints as any).length > 0 && Number((demoPoints as any)[0]?.total_points) === 0) {
-    await sql`UPDATE users SET total_points = 1250, rank_points = 1250, rank = 'silver', collection_count = 8 WHERE id = ${demoId}`;
-  }
+  // Update demo user stats
+  await sql`UPDATE users SET total_points = 2900, rank_points = 2900, rank = 'gold', collection_count = 25, updated_at = NOW() WHERE id = ${demoId}`;
 
   // Seed sample journeys
   const journeys = [

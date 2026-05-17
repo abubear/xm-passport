@@ -9,8 +9,8 @@ export default async function VaultPage() {
   if (!token) return null;
   const payload = verifyToken(token) as UserPayload;
 
-  const cards = (await query(`SELECT * FROM cards WHERE owner_id = ${payload.id} ORDER BY scanned_at DESC`)) as Card[];
-  const etickets = (await query(`SELECT * FROM etickets WHERE owner_id = ${payload.id} ORDER BY created_at DESC`)) as ETicket[];
+  const cards = await query(`SELECT * FROM cards WHERE owner_id = $1 ORDER BY scanned_at DESC`, [payload.id]) as Card[];
+  const etickets = await query(`SELECT * FROM etickets WHERE owner_id = $1 ORDER BY created_at DESC`, [payload.id]) as ETicket[];
 
   return (
     <div className="xm-container py-6 space-y-6">
