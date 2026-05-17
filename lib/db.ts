@@ -18,13 +18,23 @@ function ensureNeon(): ReturnType<typeof neon> {
 // Supports: sql`SELECT...` (tagged template) and query('SELECT...', [params])
 const sql = new Proxy({} as ReturnType<typeof neon>, {
   apply(_target, _thisArg, args: any[]) {
-    return (ensureNeon() as any)(...args);
+    try {
+      return (ensureNeon() as any)(...args);
+    } catch (e: any) {
+      console.error('[DB ERROR] sql apply failed:', e?.message || e);
+      throw e;
+    }
   },
   get(_target, prop: string | symbol) {
     if (prop === 'toJSON' || prop === 'then' || prop === Symbol.toPrimitive || prop === 'toString') {
       return undefined;
     }
-    return (ensureNeon() as any)[prop];
+    try {
+      return (ensureNeon() as any)[prop];
+    } catch (e: any) {
+      console.error('[DB ERROR] sql get failed:', prop.toString(), e?.message || e);
+      throw e;
+    }
   }
 }) as unknown as ReturnType<typeof neon>;
 
@@ -37,10 +47,16 @@ export async function query(text: string, params?: any[]) {
   // Auto-init DB on first query
   if (!initialized) {
     initialized = true;
-    await migrate();
-    const rows = await (ensureNeon() as any)('SELECT COUNT(*) as count FROM cards');
-    if (rows[0]?.count === 0 || rows[0]?.count === BigInt(0)) {
-      await seed();
+    try {
+      await migrate();
+      const rows = await (ensureNeon() as any)('SELECT COUNT(*) as count FROM cards');
+      if (rows[0]?.count === 0 || rows[0]?.count === BigInt(0)) {
+        await seed();
+      }
+      console.log('[DB] init complete');
+    } catch (e: any) {
+      console.error('[DB] init failed:', e?.message || e);
+      throw e;
     }
   }
   return (ensureNeon() as any)(text, params);
