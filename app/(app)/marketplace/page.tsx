@@ -22,8 +22,8 @@ export default async function MarketplacePage() {
 
       {/* Action bar */}
       <div className="flex gap-3">
-        <a href="/marketplace/create" className="xm-btn-primary text-xs flex-1 text-center">
-          Create Listing
+        <a href="/marketplace/create" className="text-sm font-medium transition-all duration-200 hover:opacity-70 active:scale-[0.97]" style={{ color: 'var(--xm-primary)' }}>
+          Create Listing →
         </a>
       </div>
 
@@ -62,7 +62,8 @@ export default async function MarketplacePage() {
                     <p className="text-[10px] text-[#52525B]">{listing.seller_number}</p>
                   </div>
                 </div>
-                <button className="xm-btn-primary text-xs py-1.5 px-4 font-medium">
+                {/* Buy button as Apple-style text link */}
+                <button className="text-sm font-medium transition-all duration-200 hover:opacity-70 active:scale-[0.97]" style={{ color: 'var(--xm-primary)' }}>
                   Buy Now
                 </button>
               </div>

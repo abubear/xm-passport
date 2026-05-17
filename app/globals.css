@@ -2,10 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Apple Light Mode */
   --xm-canvas: #ffffff;
   --xm-canvas-parchment: #f5f5f7;
   --xm-ink: #1d1d1f;
@@ -19,16 +18,13 @@
   --xm-border-soft: #f0f0f0;
   --xm-surface-pearl: #fafafc;
   --xm-card-bg: #ffffff;
-  --xm-card-border: rgba(0,0,0,0.08);
   --xm-bottom-nav: rgba(255,255,255,0.95);
   --xm-bottom-nav-border: rgba(0,0,0,0.06);
   --xm-success: #34C759;
-  --xm-accent: #0066cc;
 }
 
 .dark {
-  /* Apple Dark Mode */
-  --xm-canvas: #000000;
+  --xm-canvas: #0a0a0a;
   --xm-canvas-parchment: #1d1d1f;
   --xm-ink: #ffffff;
   --xm-ink-muted: #86868b;
@@ -37,15 +33,13 @@
   --xm-primary: #2997ff;
   --xm-primary-hover: #0071e3;
   --xm-primary-on-dark: #2997ff;
-  --xm-border: #424245;
-  --xm-border-soft: #333336;
+  --xm-border: #333336;
+  --xm-border-soft: #2a2a2c;
   --xm-surface-pearl: #1d1d1f;
   --xm-card-bg: #1c1c1e;
-  --xm-card-border: rgba(255,255,255,0.1);
-  --xm-bottom-nav: rgba(0,0,0,0.95);
+  --xm-bottom-nav: rgba(10,10,10,0.95);
   --xm-bottom-nav-border: rgba(255,255,255,0.06);
   --xm-success: #30D158;
-  --xm-accent: #2997ff;
 }
 
 * { box-sizing: border-box; }
@@ -54,60 +48,56 @@ html { font-size: 16px; -webkit-text-size-adjust: 100%; }
 body {
   background: var(--xm-canvas);
   color: var(--xm-body);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Geist', system-ui, -apple-system, sans-serif;
   min-height: 100dvh;
   overflow-x: hidden;
   transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--xm-border); border-radius: 2px; }
-
 .safe-top { padding-top: env(safe-area-inset-top); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 
-/* Background glow (dark mode only) */
+/* Ambient glow */
 .bg-glow {
   position: fixed;
   top: -20%;
   left: 50%;
   transform: translateX(-50%);
   width: 800px;
-  height: 600px;
-  background: radial-gradient(ellipse at center, rgba(41, 151, 255, 0.08) 0%, rgba(0, 0, 0, 0) 70%);
+  height: 800px;
+  background: radial-gradient(ellipse at center, rgba(41, 151, 255, 0.10) 0%, rgba(41, 151, 255, 0.03) 40%, transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
 
 .dark .bg-glow {
-  background: radial-gradient(ellipse at center, rgba(41, 151, 255, 0.12) 0%, rgba(0, 0, 0, 0) 70%);
+  background: radial-gradient(ellipse at center, rgba(41, 151, 255, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
 }
 
 @layer components {
   .xm-container {
-    @apply mx-auto max-w-lg px-4;
+    @apply mx-auto max-w-lg px-3;
   }
 
-  /* Apple-style cards */
+  /* Apple-style cards — background only, no border, no shadow */
   .xm-card {
-    @apply rounded-[18px] p-4;
+    @apply rounded-2xl p-5;
     background: var(--xm-card-bg);
-    border: 1px solid var(--xm-card-border);
-    transition: background 0.3s ease, border-color 0.3s ease;
+    transition: background 0.3s ease;
   }
 
   .xm-card-gold {
-    @apply rounded-[18px] p-4;
+    @apply rounded-2xl p-5;
     background: var(--xm-card-bg);
-    border: 1px solid var(--xm-primary);
   }
 
-  /* Apple-style buttons */
+  /* Buttons — Apple pill style */
   .xm-btn {
-    @apply rounded-full px-5 py-2.5 text-sm font-medium transition-all active:scale-95;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    @apply rounded-full px-6 py-3 text-sm font-medium transition-all duration-200 active:scale-[0.97];
+    font-family: 'Geist', system-ui, -apple-system, sans-serif;
   }
 
   .xm-btn-primary {
@@ -115,72 +105,76 @@ body {
     background: var(--xm-primary);
     color: #ffffff;
   }
+  .xm-btn-primary:hover { opacity: 0.85; }
 
   .xm-btn-secondary {
     @apply xm-btn;
-    background: var(--xm-surface-pearl);
-    color: var(--xm-ink);
-    border: 1px solid var(--xm-border-soft);
+    background: transparent;
+    color: var(--xm-primary);
   }
+  .xm-btn-secondary:hover { opacity: 0.7; }
 
   .xm-btn-danger {
     @apply xm-btn;
-    background: rgba(255, 59, 48, 0.1);
+    background: transparent;
     color: #FF3B30;
-    border: 1px solid rgba(255, 59, 48, 0.2);
   }
 
-  /* Apple-style input */
+  /* Input */
   .xm-input {
-    @apply w-full rounded-full px-5 py-3 text-[17px] outline-none transition-colors;
+    @apply w-full rounded-full px-5 py-3.5 text-base outline-none transition-colors duration-200;
     background: var(--xm-canvas);
     border: 1px solid var(--xm-border);
     color: var(--xm-ink);
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Geist', system-ui, -apple-system, sans-serif;
   }
-
   .xm-input:focus { border-color: var(--xm-primary); }
   .xm-input::placeholder { color: var(--xm-body-muted); }
 
-  /* Bottom nav - Apple style */
+  /* Bottom nav */
   .nav-item {
-    @apply flex flex-col items-center gap-0.5 text-xs transition-colors;
+    @apply flex flex-col items-center gap-0.5 text-xs transition-all duration-200;
     color: var(--xm-body-muted);
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Geist', system-ui, -apple-system, sans-serif;
+    letter-spacing: -0.01em;
   }
-
   .nav-item.active { color: var(--xm-ink); }
+  .nav-item:hover { opacity: 0.7; }
   .nav-item svg { @apply w-5 h-5; }
 
-  /* Apple-style stat labels */
+  /* Stat labels — Apple-style small caps */
   .stat-label {
     @apply text-xs;
     color: var(--xm-body-muted);
     font-weight: 500;
     letter-spacing: -0.01em;
   }
-
   .stat-value {
-    @apply text-2xl;
+    @apply text-3xl;
     color: var(--xm-ink);
     font-weight: 600;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
   }
 
   /* Category tags */
   .tag-card {
-    @apply rounded-full px-3 py-0.5 text-[11px] font-medium;
-    background: var(--xm-primary);
-    color: #ffffff;
+    @apply rounded-full px-3 py-0.5 text-[11px] font-semibold;
+    background: rgba(0, 102, 204, 0.1);
+    color: var(--xm-primary);
+  }
+  .dark .tag-card {
+    background: rgba(41, 151, 255, 0.15);
+    color: var(--xm-primary);
   }
 
   .tag-eticket {
-    @apply rounded-full px-3 py-0.5 text-[11px] font-medium;
-    background: #A855F7;
-    color: #ffffff;
+    @apply rounded-full px-3 py-0.5 text-[11px] font-semibold;
+    background: rgba(168, 85, 247, 0.12);
+    color: #A855F7;
   }
 
-  /* Price text */
+  /* Price */
   .price-accent {
     color: var(--xm-success);
     font-weight: 600;
@@ -188,7 +182,7 @@ body {
 
   /* Item image area */
   .item-image {
-    @apply rounded-[18px];
+    @apply rounded-2xl;
     background: var(--xm-canvas-parchment);
     aspect-ratio: 16/9;
     display: flex;
@@ -209,20 +203,18 @@ body {
     background-clip: text;
   }
 
-  /* Rarity indicators */
+  /* Rarity */
   .rarity-common { border-left: 3px solid var(--xm-body-muted); }
   .rarity-rare { border-left: 3px solid var(--xm-primary); }
   .rarity-ultra-rare { border-left: 3px solid #9b59b6; }
   .rarity-legendary {
     border-left: 3px solid var(--xm-success);
-    box-shadow: 0 0 20px rgba(52, 199, 89, 0.1);
   }
 
   @keyframes shimmer {
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
   }
-
   .shimmer {
     background: linear-gradient(90deg, var(--xm-border-soft) 25%, var(--xm-border) 50%, var(--xm-border-soft) 75%);
     background-size: 200% 100%;
@@ -230,31 +222,20 @@ body {
   }
 }
 
-/* Bottom navigation bar - Apple style */
 .bottom-nav {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   background: var(--xm-bottom-nav);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
   border-top: 1px solid var(--xm-bottom-nav-border);
   display: flex;
   justify-content: space-around;
-  padding: 8px 0 env(safe-area-inset-bottom, 8px);
+  padding: 6px 0 env(safe-area-inset-bottom, 8px);
   z-index: 50;
   transition: background 0.3s ease, border-color 0.3s ease;
 }
 
-.page-content {
-  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
-}
-
-/* Apple-style nav link */
-.nav-link {
-  color: var(--xm-primary);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  transition: opacity 0.2s;
-}
-.nav-link:hover { opacity: 0.7; }
+.page-content { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
