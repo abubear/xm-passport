@@ -212,58 +212,60 @@ export async function seed() {
 
   const existingCards = await sql`SELECT COUNT(*) as count FROM cards`;
   const cardCount = Number((existingCards as any)[0]?.count || 0);
-  if (cardCount < 8) { // Only seed if first-run
-    for (const card of sampleCards) {
-      try {
-        await sql`INSERT INTO cards (id, card_code, product_name, ip, rarity, card_type, edition_size, points_value, status, owner_id, scanned_at) VALUES (${uuidv4()}, ${card.code}, ${card.name}, ${card.ip}, ${card.rarity}, 'metal', ${card.rarity === 'legendary' ? 100 : 500}, ${card.points}, 'active', ${demoId}, NOW())`;
-      } catch { /* ignore duplicate */ }
-    }
-
-    // Seed e-tickets for demo user
-    const eticketProducts = [
-      'Batman Who Laughs Statue', 'Wonder Woman Golden Armor', 'Iron Man Mark LXXXV',
-      'Darkseid Throne', 'Optimus Prime Truck Mode', 'Thor Stormbreaker',
-    ];
-    for (let i = 0; i < 6; i++) {
-      try {
-        const ticketStatus = i < 3 ? 'redeemed' : 'active';
-        const payment = i < 3 ? 'paid' : 'pending';
-        await sql.query('INSERT INTO etickets (id, ticket_code, product_id, product_name, owner_id, status, payment_status, purchase_price, redemption_date, points_earned) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, ' + (i < 3 ? 'NOW()' : 'NULL') + ', $9)', [
-          uuidv4(), `XM-ET-${String(i+1).padStart(4,'0')}`, uuidv4(),
-          eticketProducts[i], demoId, ticketStatus, payment,
-          Math.floor(Math.random() * 1000) + 500,
-          i < 3 ? 100 : 0,
-        ]);
-      } catch { /* ignore duplicate */ }
-    }
-
-    // Seed marketplace listings
-    const listingItems = [
-      { item: sampleCards[2].code, type: 'card', price: 249, seller: demoId },
-      { item: sampleCards[5].code, type: 'card', price: 89, seller: demoId },
-      { item: sampleCards[7].code, type: 'card', price: 79, seller: demoId },
-      { item: `XM-ET-0004`, type: 'eticket', price: 1599, seller: demoId },
-    ];
-    for (const l of listingItems) {
-      try {
-        const existingList = await sql(`SELECT id FROM marketplace_listings WHERE item_id = $1`, [l.item]);
-        if ((existingList as any).length === 0) {
-          await sql`INSERT INTO marketplace_listings (id, seller_id, item_type, item_id, price, status) VALUES (${uuidv4()}, ${l.seller}, ${l.type}, ${l.item}, ${l.price}, 'active')`;
-        }
-      } catch { /* ignore */ }
-    }
-
-    // Seed points transactions
-    const pointReasons = ['card_scan', 'card_scan', 'card_scan', 'journey_complete', 'card_scan', 'card_scan', 'card_scan', 'bonus'];
-    const pointAmounts = [300, 400, 100, 1000, 500, 300, 100, 200];
-    for (let i = 0; i < pointReasons.length; i++) {
-      try {
-        await sql`INSERT INTO points_transactions (id, user_id, amount, reason, created_at) VALUES (${uuidv4()}, ${demoId}, ${pointAmounts[i]}, ${pointReasons[i]}, NOW() - interval '${String((pointReasons.length - i) * 2)} days')`;
-      } catch { /* ignore */ }
-    }
+  // Seed data on every deploy (idempotent via try/catch)
+  for (const card of sampleCards) {
+    try {
+      await sql`INSERT INTO cards (id, card_code, product_name, ip, rarity, card_type, edition_size, points_value, status, owner_id, scanned_at) VALUES (${uuidv4()}, ${card.code}, ${card.name}, ${card.ip}, ${card.rarity}, 'metal', ${card.rarity === 'legendary' ? 100 : 500}, ${card.points}, 'active', ${demoId}, NOW())`;
+    } catch { /* ignore duplicate */ }
   }
 
-  // Update demo user stats
+  // Seed e-tickets for demo user
+  const eticketProducts = [
+    'Batman Who Laughs Statue', 'Wonder Woman Golden Armor', 'Iron Man Mark LXXXV',
+    'Darkseid Throne', 'Optimus Prime Truck Mode', 'Thor Stormbreaker',
+  ];
+  for (let i = 0; i < 6; i++) {
+    try {
+      const ticketStatus = i < 3 ? 'redeemed' : 'active';
+      const payment = i < 3 ? 'paid' : 'pending';
+      await sql.query('INSERT INTO etickets (id, ticket_code, product_id, product_name, owner_id, status, payment_status, purchase_price, redemption_date, points_earned) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, ' + (i < 3 ? 'NOW()' : 'NULL') + ', $9) ON CONFLICT DO NOTHING', [
+        uuidv4(), `XM-ET-${String(i+1).padStart(4,'0')}`, uuidv4(),
+        eticketProducts[i], demoId, ticketStatus, payment,
+        Math.floor(Math.random() * 1000) + 500,
+        i < 3 ? 100 : 0,
+      ]);
+    } catch { /* ignore duplicate */ }
+  }
+
+  // Seed marketplace listings
+  const listingItems = [
+    { item: sampleCards[2].code, type: 'card', price: 249, seller: demoId },
+    { item: sampleCards[5].code, type: 'card', price: 89, seller: demoId },
+    { item: sampleCards[7].code, type: 'card', price: 79, seller: demoId },
+    { item: `XM-ET-0004`, type: 'eticket', price: 1599, seller: demoId },
+  ];
+  for (const l of listingItems) {
+    try {
+      const existingList = await sql(`SELECT id FROM marketplace_listings WHERE item_id = $1`, [l.item]);
+      if ((existingList as any).length === 0) {
+        await sql`INSERT INTO marketplace_listings (id, seller_id, item_type, item_id, price, status) VALUES (${uuidv4()}, ${l.seller}, ${l.type}, ${l.item}, ${l.price}, 'active')`;
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Seed points transactions
+  const pointReasons = ['card_scan', 'card_scan', 'card_scan', 'journey_complete', 'card_scan', 'card_scan', 'card_scan', 'bonus'];
+  const pointAmounts = [300, 400, 100, 1000, 500, 300, 100, 200];
+  for (let i = 0; i < 8; i++) {
+    try {
+      await sql.query("INSERT INTO points_transactions (id, user_id, amount, reason, created_at) VALUES ($1, $2, $3, $4, NOW() - interval '" + String((8 - i) * 2) + " days') ON CONFLICT DO NOTHING", [
+        uuidv4(), demoId, pointAmounts[i], pointReasons[i],
+      ]);
+    } catch { /* ignore */ }
+  }
+
+  // Always update demo user stats
+  // Always update demo user stats
   await sql`UPDATE users SET total_points = 2900, rank_points = 2900, rank = 'gold', collection_count = 25, updated_at = NOW() WHERE id = ${demoId}`;
 
   // Seed sample journeys
