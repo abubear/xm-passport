@@ -2,40 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;600&display=swap');
+
 :root {
-  --xm-black: #0a0a0a;
-  --xm-dark: #1a1a1a;
-  --xm-card: #242424;
-  --xm-gold: #c8a95a;
-  --xm-gold-light: #e0c878;
+  --xm-black: #030303;
+  --xm-dark: #09090b;
+  --xm-card: #18181B;
+  --xm-gold: #34D399;
+  --xm-gold-light: #6EE7B7;
   --xm-bronze: #b8864e;
   --xm-silver: #a8a8a8;
-  --xm-accent: #d4a853;
+  --xm-accent: #60A5FA;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-html {
-  font-size: 16px;
-  -webkit-text-size-adjust: 100%;
-}
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
 
 body {
   background: var(--xm-black);
   color: #e0e0e0;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'DM Sans', system-ui, sans-serif;
   min-height: 100dvh;
   overflow-x: hidden;
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: var(--xm-dark); }
-::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+::-webkit-scrollbar-track { background: #09090b; }
+::-webkit-scrollbar-thumb { background: #27272A; border-radius: 2px; }
 
-/* Safe area for notched phones */
 .safe-top { padding-top: env(safe-area-inset-top); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 
@@ -46,30 +42,31 @@ body {
 
   .xm-card {
     @apply rounded-2xl p-4;
-    background: linear-gradient(145deg, #1e1e1e, #242424);
-    border: 1px solid #2a2a2a;
+    background: #18181B;
+    border: 1px solid #27272A;
   }
 
   .xm-card-gold {
-    background: linear-gradient(145deg, #1a1a1a, #242424);
-    border: 1px solid rgba(200, 169, 90, 0.3);
+    background: #18181B;
+    border: 1px solid rgba(52, 211, 153, 0.3);
   }
 
   .xm-btn {
     @apply rounded-xl px-6 py-3 font-semibold text-sm transition-all active:scale-95;
+    font-family: 'Inter', system-ui, sans-serif;
   }
 
   .xm-btn-primary {
     @apply xm-btn;
-    background: linear-gradient(135deg, #c8a95a, #a8883a);
-    color: #0a0a0a;
+    background: #34D399;
+    color: #030303;
   }
 
   .xm-btn-secondary {
     @apply xm-btn;
-    background: #2a2a2a;
+    background: #18181B;
     color: #e0e0e0;
-    border: 1px solid #3a3a3a;
+    border: 1px solid #27272A;
   }
 
   .xm-btn-danger {
@@ -81,40 +78,30 @@ body {
 
   .xm-input {
     @apply w-full rounded-xl px-4 py-3 text-sm outline-none transition-colors;
-    background: #1a1a1a;
-    border: 1px solid #2a2a2a;
+    background: #18181B;
+    border: 1px solid #27272A;
     color: #e0e0e0;
   }
 
-  .xm-input:focus {
-    border-color: #c8a95a;
-  }
-
-  .xm-input::placeholder {
-    color: #666;
-  }
+  .xm-input:focus { border-color: #34D399; }
+  .xm-input::placeholder { color: #666; }
 
   /* Bottom nav */
   .nav-item {
     @apply flex flex-col items-center gap-1 text-xs transition-colors;
-    color: #666;
+    color: #52525B;
   }
 
-  .nav-item.active {
-    color: #c8a95a;
-  }
-
-  .nav-item svg {
-    @apply w-6 h-6;
-  }
+  .nav-item.active { color: #34D399; }
+  .nav-item svg { @apply w-6 h-6; }
 
   /* Rank badges */
   .rank-bronze { color: #b8864e; }
   .rank-silver { color: #a8a8a8; }
-  .rank-gold { color: #c8a95a; }
-  .rank-platinum { color: #7ec8e3; }
-  .rank-master { 
-    background: linear-gradient(135deg, #c8a95a, #e0c878, #c8a95a);
+  .rank-gold { color: #34D399; }
+  .rank-platinum { color: #60A5FA; }
+  .rank-master {
+    background: linear-gradient(135deg, #34D399, #60A5FA, #34D399);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -122,21 +109,20 @@ body {
 
   /* Rarity indicators */
   .rarity-common { border-left: 3px solid #a8a8a8; }
-  .rarity-rare { border-left: 3px solid #4a90d9; }
+  .rarity-rare { border-left: 3px solid #60A5FA; }
   .rarity-ultra-rare { border-left: 3px solid #9b59b6; }
-  .rarity-legendary { 
-    border-left: 3px solid #c8a95a;
-    box-shadow: 0 0 20px rgba(200, 169, 90, 0.1);
+  .rarity-legendary {
+    border-left: 3px solid #34D399;
+    box-shadow: 0 0 20px rgba(52, 211, 153, 0.1);
   }
 
-  /* Animations */
   @keyframes shimmer {
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
   }
 
   .shimmer {
-    background: linear-gradient(90deg, #1a1a1a 25%, #2a2a2a 50%, #1a1a1a 75%);
+    background: linear-gradient(90deg, #18181B 25%, #27272A 50%, #18181B 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
   }
@@ -148,16 +134,15 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(10, 10, 10, 0.95);
+  background: rgba(9, 9, 11, 0.95);
   backdrop-filter: blur(20px);
-  border-top: 1px solid #1a1a1a;
+  border-top: 1px solid #27272A;
   display: flex;
   justify-content: space-around;
   padding: 8px 0 env(safe-area-inset-bottom, 8px);
   z-index: 50;
 }
 
-/* Page content padding for bottom nav */
 .page-content {
   padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
 }
