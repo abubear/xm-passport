@@ -3,7 +3,7 @@
 // extracts user info, creates/finds user, sets JWT cookie.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { sql, query } from '@/lib/db';
+import { query } from '@/lib/db';
 import { signToken, setAuthCookie } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 

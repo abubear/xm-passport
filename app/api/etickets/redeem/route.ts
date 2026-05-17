@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { sql, query } from '@/lib/db';
+import { query } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   const token = getAuthToken();

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { sql, query } from '@/lib/db';
+import { query } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { RARITY_POINTS, RANK_THRESHOLDS } from '@/lib/types';
 

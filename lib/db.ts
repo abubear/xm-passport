@@ -1,295 +1,245 @@
-import { neon } from '@neondatabase/serverless';
+import { Pool } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 
-// Lazy neon connection — created on first tagged-template or function call
-let _neon: ReturnType<typeof neon> | null = null;
+const pool = new Pool({
+  connectionString: process.env.POSTGRES_URL,
+  max: 1,
+  idleTimeoutMillis: 10000,
+  connectionTimeoutMillis: 5000,
+});
 
-function ensureNeon(): ReturnType<typeof neon> {
-  if (!_neon) {
-    const url = process.env.POSTGRES_URL;
-    if (!url) throw new Error('POSTGRES_URL environment variable not set');
-    _neon = neon(url);
-  }
-  return _neon;
-}
-
-// Simple wrapper that lazily creates neon connection
-// Supports: sql`SELECT...` (tagged template with ${} interpolation)
-function sql(strings: TemplateStringsArray, ...values: any[]) {
-  return (ensureNeon() as any)(strings, ...values);
-}
-// Attach .query() method for parameterized SQL
-sql.query = function(text: string, params?: any[]) {
-  return (ensureNeon() as any).query(text, params);
-} as any;
-
-export { sql };
-
-/** Lazy query helper: await query('SELECT * FROM users WHERE id = $1', [id]) */
-let initialized = false;
+let migrated = false;
 
 export async function query(text: string, params?: any[]) {
-  // Auto-init DB on first query
-  if (!initialized) {
-    initialized = true;
-    try {
-      await migrate();
-      const rows = await (ensureNeon() as any).query('SELECT COUNT(*) as count FROM cards');
-      if (rows[0]?.count === 0 || rows[0]?.count === BigInt(0)) {
-        await seed();
-      }
-      console.log('[DB] init complete');
-    } catch (e: any) {
-      console.error('[DB] init failed:', e?.message || e);
-      throw e;
-    }
+  if (!migrated) {
+    migrated = true;
+    await migrate();
   }
-  return (ensureNeon() as any).query(text, params);
+  const client = await pool.connect();
+  try {
+    const result = await client.query(text, params);
+    return result.rows;
+  } finally {
+    client.release();
+  }
 }
 
 export async function initDb() {
-  if (initialized) return;
-  initialized = true;
   await migrate();
-  const rows = await (ensureNeon() as any)('SELECT COUNT(*) as count FROM cards');
-  if (rows[0]?.count === 0 || rows[0]?.count === BigInt(0)) {
+  const rows = await query('SELECT COUNT(*) as count FROM cards');
+  if (Number(rows[0]?.count || 0) === 0) {
     await seed();
   }
 }
 
 export async function migrate() {
-  await sql`CREATE TABLE IF NOT EXISTS _migrations (version INTEGER PRIMARY KEY)`;
+  await pool.query('CREATE TABLE IF NOT EXISTS _migrations (version INTEGER PRIMARY KEY)');
 
-  const versionRows = await sql`SELECT COALESCE(MAX(version), 0) as v FROM _migrations`;
-  const currentVersion = Number((versionRows as any)[0]?.v || 0);
+  const versionResult = await pool.query('SELECT COALESCE(MAX(version), 0) as v FROM _migrations');
+  const currentVersion = Number(versionResult.rows[0]?.v || 0);
 
   if (currentVersion < 1) {
-    await sql`CREATE TABLE IF NOT EXISTS users (
+    await pool.query(`CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY, email TEXT UNIQUE, phone TEXT UNIQUE, password_hash TEXT,
       display_name TEXT NOT NULL, auth_provider TEXT DEFAULT 'email', provider_id TEXT,
       wechat_unionid TEXT, collector_number TEXT, avatar_url TEXT,
       total_points INTEGER DEFAULT 0, rank TEXT DEFAULT 'bronze', rank_points INTEGER DEFAULT 0,
       collection_count INTEGER DEFAULT 0, verified_collector INTEGER DEFAULT 0, is_admin INTEGER DEFAULT 0,
       created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
-    )`;
-    await sql`CREATE TABLE IF NOT EXISTS cards (
+    )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS cards (
       id TEXT PRIMARY KEY, card_code TEXT UNIQUE NOT NULL, product_name TEXT NOT NULL,
       ip TEXT, edition TEXT, edition_size INTEGER, edition_number INTEGER,
       rarity TEXT DEFAULT 'common', card_type TEXT DEFAULT 'metal', image_url TEXT,
       owner_id TEXT REFERENCES users(id), status TEXT DEFAULT 'active', scanned_at TIMESTAMP,
       points_value INTEGER DEFAULT 100, created_at TIMESTAMP DEFAULT NOW()
-    )`;
-    await sql`CREATE TABLE IF NOT EXISTS etickets (
+    )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS etickets (
       id TEXT PRIMARY KEY, ticket_code TEXT UNIQUE NOT NULL, product_id TEXT NOT NULL,
       product_name TEXT NOT NULL, owner_id TEXT REFERENCES users(id), status TEXT DEFAULT 'active',
       payment_status TEXT DEFAULT 'reserved', purchase_price REAL, redemption_date TIMESTAMP,
       expiry_date TIMESTAMP, points_earned INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT NOW()
-    )`;
-    await sql`CREATE TABLE IF NOT EXISTS products (
+    )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS products (
       id TEXT PRIMARY KEY, name TEXT NOT NULL, ip TEXT, description TEXT,
       product_type TEXT DEFAULT 'statue', edition_size INTEGER, price REAL,
       image_url TEXT, release_date TIMESTAMP, status TEXT DEFAULT 'draft',
       e_ticket_enabled INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW()
-    )`;
-    await sql`CREATE TABLE IF NOT EXISTS marketplace_listings (
+    )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS marketplace_listings (
       id TEXT PRIMARY KEY, seller_id TEXT REFERENCES users(id), item_type TEXT NOT NULL,
       item_id TEXT NOT NULL, price REAL NOT NULL, currency TEXT DEFAULT 'SGD',
       status TEXT DEFAULT 'active', buyer_id TEXT REFERENCES users(id),
       sold_at TIMESTAMP, created_at TIMESTAMP DEFAULT NOW()
-    )`;
-    await sql`CREATE TABLE IF NOT EXISTS points_transactions (
+    )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS points_transactions (
       id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id), amount INTEGER NOT NULL,
       reason TEXT NOT NULL, reference_id TEXT, created_at TIMESTAMP DEFAULT NOW()
-    )`;
-    await sql`CREATE TABLE IF NOT EXISTS collection_journeys (
+    )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS collection_journeys (
       id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, ip TEXT,
       required_items TEXT NOT NULL, reward_points INTEGER DEFAULT 500,
       reward_rank_boost INTEGER DEFAULT 0, badge_url TEXT, created_at TIMESTAMP DEFAULT NOW()
-    )`;
-    await sql`CREATE TABLE IF NOT EXISTS user_journeys (
+    )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS user_journeys (
       id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id),
       journey_id TEXT REFERENCES collection_journeys(id),
       progress TEXT DEFAULT '{}', completed INTEGER DEFAULT 0,
       completed_at TIMESTAMP, created_at TIMESTAMP DEFAULT NOW()
-    )`;
-    await sql`INSERT INTO _migrations (version) VALUES (1)`;
+    )`);
+    await pool.query('INSERT INTO _migrations (version) VALUES (1)');
   }
 
   if (currentVersion < 2) {
     const cols = ['phone', 'auth_provider', 'provider_id', 'wechat_unionid'];
     for (const col of cols) {
-      try {
-        const statements: Record<string, string> = {
-          phone: 'ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT',
-          auth_provider: "ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider TEXT DEFAULT 'email'",
-          provider_id: 'ALTER TABLE users ADD COLUMN IF NOT EXISTS provider_id TEXT',
-          wechat_unionid: 'ALTER TABLE users ADD COLUMN IF NOT EXISTS wechat_unionid TEXT',
-        };
-        await sql.query(statements[col]);
-      } catch { /* column exists */ }
+      try { await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${col} TEXT`); }
+      catch { /* exists */ }
     }
-    await sql`INSERT INTO _migrations (version) VALUES (2)`;
+    await pool.query('INSERT INTO _migrations (version) VALUES (2)');
   }
 
   if (currentVersion < 3) {
-    await sql`INSERT INTO _migrations (version) VALUES (3)`;
+    await pool.query('INSERT INTO _migrations (version) VALUES (3)');
   }
 
   if (currentVersion < 4) {
     const cols = ['bio', 'location', 'collection_prefs', 'public_profile', 'social_links'];
     for (const col of cols) {
       try {
-        const statements: Record<string, string> = {
-          bio: 'ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT',
-          location: 'ALTER TABLE users ADD COLUMN IF NOT EXISTS location TEXT',
-          collection_prefs: "ALTER TABLE users ADD COLUMN IF NOT EXISTS collection_prefs TEXT DEFAULT '[]'",
-          public_profile: 'ALTER TABLE users ADD COLUMN IF NOT EXISTS public_profile INTEGER DEFAULT 0',
-          social_links: "ALTER TABLE users ADD COLUMN IF NOT EXISTS social_links TEXT DEFAULT '{}'",
+        const defaults: Record<string, string> = {
+          collection_prefs: "TEXT DEFAULT '[]'",
+          public_profile: 'INTEGER DEFAULT 0',
+          social_links: "TEXT DEFAULT '{}'",
         };
-        await sql.query(statements[col]);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${col} ${defaults[col] || 'TEXT'}`);
       } catch { /* exists */ }
     }
-    await sql`INSERT INTO _migrations (version) VALUES (4)`;
+    await pool.query('INSERT INTO _migrations (version) VALUES (4)');
   }
 
   if (currentVersion < 5) {
-    try {
-      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'en'`;
-    } catch { /* exists */ }
-    await sql`INSERT INTO _migrations (version) VALUES (5)`;
+    try { await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'en'"); }
+    catch { /* exists */ }
+    await pool.query('INSERT INTO _migrations (version) VALUES (5)');
   }
 
   console.log('Migration complete. Version:', currentVersion < 1 ? 1 : currentVersion);
 }
 
 export async function seed() {
-  const hash = bcrypt.hashSync('admin123', 10);
-
-  // CONCEPT MODE: seed demo user
   const demoId = '00000000-0000-0000-0000-000000000001';
-  const demoExists = await sql`SELECT id FROM users WHERE id = ${demoId}`;
-  if ((demoExists as any).length === 0) {
-    await sql`INSERT INTO users (id, email, display_name, collector_number, rank, total_points, rank_points, collection_count, verified_collector, is_admin, auth_provider) VALUES (${demoId}, 'demo@xmstudios.com', 'Demo Collector', 'XM-DEMO01', 'bronze', 0, 0, 0, 0, 0, 'email')`;
+
+  // Demo user
+  const demoCheck = await pool.query('SELECT id FROM users WHERE id = $1', [demoId]);
+  if (demoCheck.rows.length === 0) {
+    await pool.query(`INSERT INTO users (id, email, display_name, collector_number, rank, total_points, rank_points, collection_count, verified_collector, is_admin, auth_provider) VALUES ($1, 'demo@xmstudios.com', 'Demo Collector', 'XM-DEMO01', 'gold', 2900, 2900, 25, 0, 0, 'email')`, [demoId]);
   }
 
-  const existing = await sql`SELECT id FROM users WHERE email = 'admin@xmstudios.com'`;
-  if ((existing as any).length === 0) {
-    await sql`INSERT INTO users (id, email, password_hash, display_name, collector_number, rank, verified_collector, is_admin, auth_provider) VALUES (${uuidv4()}, 'admin@xmstudios.com', ${hash}, 'XM Admin', 'XM-00000', 'master', 1, 1, 'email')`;
-    console.log('Admin user created: admin@xmstudios.com / admin123');
+  // Admin user
+  const hash = bcrypt.hashSync('admin123', 10);
+  const adminCheck = await pool.query("SELECT id FROM users WHERE email = 'admin@xmstudios.com'");
+  if (adminCheck.rows.length === 0) {
+    await pool.query(`INSERT INTO users (id, email, password_hash, display_name, collector_number, rank, verified_collector, is_admin, auth_provider) VALUES ($1, 'admin@xmstudios.com', $2, 'XM Admin', 'XM-00000', 'master', 1, 1, 'email')`, [uuidv4(), hash]);
   }
 
-  // Seed sample cards (all assigned to demo user)
+  // Cards (25)
   const sampleCards = [
-    { code: 'XM-CARD-0001', name: 'Batman Who Laughs', ip: 'DC Comics', rarity: 'legendary', points: 500 },
-    { code: 'XM-CARD-0002', name: 'Wonder Woman Golden Armor', ip: 'DC Comics', rarity: 'ultra-rare', points: 400 },
-    { code: 'XM-CARD-0003', name: 'Iron Man Mark LXXXV', ip: 'Marvel', rarity: 'rare', points: 300 },
-    { code: 'XM-CARD-0004', name: 'Venom Symbiote', ip: 'Marvel', rarity: 'rare', points: 300 },
-    { code: 'XM-CARD-0005', name: 'Optimus Prime', ip: 'Transformers', rarity: 'ultra-rare', points: 400 },
-    { code: 'XM-CARD-0006', name: 'Batman Dark Knight', ip: 'DC Comics', rarity: 'common', points: 100 },
-    { code: 'XM-CARD-0007', name: 'Joker Chaos', ip: 'DC Comics', rarity: 'rare', points: 300 },
-    { code: 'XM-CARD-0008', name: 'Spider-Man Classic', ip: 'Marvel', rarity: 'common', points: 100 },
-    { code: 'XM-CARD-0009', name: 'Thor Odinson', ip: 'Marvel', rarity: 'ultra-rare', points: 400 },
-    { code: 'XM-CARD-0010', name: 'Darkseid', ip: 'DC Comics', rarity: 'legendary', points: 500 },
-    { code: 'XM-CARD-0011', name: 'Captain America Shield', ip: 'Marvel', rarity: 'rare', points: 300 },
-    { code: 'XM-CARD-0012', name: 'Hulk Smash', ip: 'Marvel', rarity: 'ultra-rare', points: 400 },
-    { code: 'XM-CARD-0013', name: 'Harley Quinn', ip: 'DC Comics', rarity: 'rare', points: 300 },
-    { code: 'XM-CARD-0014', name: 'Black Panther', ip: 'Marvel', rarity: 'common', points: 100 },
-    { code: 'XM-CARD-0015', name: 'Miles Morales', ip: 'Marvel', rarity: 'common', points: 100 },
-    { code: 'XM-CARD-0016', name: 'Superman Red Son', ip: 'DC Comics', rarity: 'legendary', points: 500 },
-    { code: 'XM-CARD-0017', name: 'Doctor Strange', ip: 'Marvel', rarity: 'rare', points: 300 },
-    { code: 'XM-CARD-0018', name: 'Scarlet Witch', ip: 'Marvel', rarity: 'ultra-rare', points: 400 },
-    { code: 'XM-CARD-0019', name: 'The Flash', ip: 'DC Comics', rarity: 'common', points: 100 },
-    { code: 'XM-CARD-0020', name: 'Mega Man', ip: 'Capcom', rarity: 'rare', points: 300 },
-    { code: 'XM-CARD-0021', name: 'Dante DMC5', ip: 'Capcom', rarity: 'ultra-rare', points: 400 },
-    { code: 'XM-CARD-0022', name: 'Guts Berserker', ip: 'Berserk', rarity: 'legendary', points: 500 },
-    { code: 'XM-CARD-0023', name: 'Gandalf the Grey', ip: 'Lord of the Rings', rarity: 'rare', points: 300 },
-    { code: 'XM-CARD-0024', name: 'Aragorn', ip: 'Lord of the Rings', rarity: 'ultra-rare', points: 400 },
-    { code: 'XM-CARD-0025', name: 'He-Man', ip: 'Masters of the Universe', rarity: 'common', points: 100 },
+    ['XM-CARD-0001', 'Batman Who Laughs', 'DC Comics', 'legendary', 500],
+    ['XM-CARD-0002', 'Wonder Woman Golden Armor', 'DC Comics', 'ultra-rare', 400],
+    ['XM-CARD-0003', 'Iron Man Mark LXXXV', 'Marvel', 'rare', 300],
+    ['XM-CARD-0004', 'Venom Symbiote', 'Marvel', 'rare', 300],
+    ['XM-CARD-0005', 'Optimus Prime', 'Transformers', 'ultra-rare', 400],
+    ['XM-CARD-0006', 'Batman Dark Knight', 'DC Comics', 'common', 100],
+    ['XM-CARD-0007', 'Joker Chaos', 'DC Comics', 'rare', 300],
+    ['XM-CARD-0008', 'Spider-Man Classic', 'Marvel', 'common', 100],
+    ['XM-CARD-0009', 'Thor Odinson', 'Marvel', 'ultra-rare', 400],
+    ['XM-CARD-0010', 'Darkseid', 'DC Comics', 'legendary', 500],
+    ['XM-CARD-0011', 'Captain America Shield', 'Marvel', 'rare', 300],
+    ['XM-CARD-0012', 'Hulk Smash', 'Marvel', 'ultra-rare', 400],
+    ['XM-CARD-0013', 'Harley Quinn', 'DC Comics', 'rare', 300],
+    ['XM-CARD-0014', 'Black Panther', 'Marvel', 'common', 100],
+    ['XM-CARD-0015', 'Miles Morales', 'Marvel', 'common', 100],
+    ['XM-CARD-0016', 'Superman Red Son', 'DC Comics', 'legendary', 500],
+    ['XM-CARD-0017', 'Doctor Strange', 'Marvel', 'rare', 300],
+    ['XM-CARD-0018', 'Scarlet Witch', 'Marvel', 'ultra-rare', 400],
+    ['XM-CARD-0019', 'The Flash', 'DC Comics', 'common', 100],
+    ['XM-CARD-0020', 'Mega Man', 'Capcom', 'rare', 300],
+    ['XM-CARD-0021', 'Dante DMC5', 'Capcom', 'ultra-rare', 400],
+    ['XM-CARD-0022', 'Guts Berserker', 'Berserk', 'legendary', 500],
+    ['XM-CARD-0023', 'Gandalf the Grey', 'Lord of the Rings', 'rare', 300],
+    ['XM-CARD-0024', 'Aragorn', 'Lord of the Rings', 'ultra-rare', 400],
+    ['XM-CARD-0025', 'He-Man', 'Masters of the Universe', 'common', 100],
   ];
 
-  const existingCards = await sql`SELECT COUNT(*) as count FROM cards`;
-  const cardCount = Number((existingCards as any)[0]?.count || 0);
-  // Seed data on every deploy (idempotent via try/catch)
-  for (const card of sampleCards) {
+  for (const [code, name, ip, rarity, points] of sampleCards) {
     try {
-      await sql`INSERT INTO cards (id, card_code, product_name, ip, rarity, card_type, edition_size, points_value, status, owner_id, scanned_at) VALUES (${uuidv4()}, ${card.code}, ${card.name}, ${card.ip}, ${card.rarity}, 'metal', ${card.rarity === 'legendary' ? 100 : 500}, ${card.points}, 'active', ${demoId}, NOW())`;
-    } catch { /* ignore duplicate */ }
+      await pool.query('INSERT INTO cards (id, card_code, product_name, ip, rarity, card_type, edition_size, points_value, status, owner_id, scanned_at) VALUES ($1, $2, $3, $4, $5, \'metal\', $6, $7, \'active\', $8, NOW()) ON CONFLICT (card_code) DO NOTHING',
+        [uuidv4(), code, name, ip, rarity, rarity === 'legendary' ? 100 : 500, points, demoId]);
+    } catch { /* ignore */ }
   }
 
-  // Seed e-tickets for demo user
-  const eticketProducts = [
-    'Batman Who Laughs Statue', 'Wonder Woman Golden Armor', 'Iron Man Mark LXXXV',
-    'Darkseid Throne', 'Optimus Prime Truck Mode', 'Thor Stormbreaker',
-  ];
+  // E-tickets
+  const eticketNames = ['Batman Who Laughs Statue', 'Wonder Woman Golden Armor', 'Iron Man Mark LXXXV', 'Darkseid Throne', 'Optimus Prime Truck Mode', 'Thor Stormbreaker'];
   for (let i = 0; i < 6; i++) {
     try {
-      const ticketStatus = i < 3 ? 'redeemed' : 'active';
-      const payment = i < 3 ? 'paid' : 'pending';
-      await sql.query('INSERT INTO etickets (id, ticket_code, product_id, product_name, owner_id, status, payment_status, purchase_price, redemption_date, points_earned) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, ' + (i < 3 ? 'NOW()' : 'NULL') + ', $9) ON CONFLICT DO NOTHING', [
-        uuidv4(), `XM-ET-${String(i+1).padStart(4,'0')}`, uuidv4(),
-        eticketProducts[i], demoId, ticketStatus, payment,
-        Math.floor(Math.random() * 1000) + 500,
-        i < 3 ? 100 : 0,
-      ]);
-    } catch { /* ignore duplicate */ }
+      await pool.query('INSERT INTO etickets (id, ticket_code, product_id, product_name, owner_id, status, payment_status, purchase_price) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (ticket_code) DO NOTHING',
+        [uuidv4(), `XM-ET-${String(i+1).padStart(4,'0')}`, uuidv4(), eticketNames[i], demoId, i < 3 ? 'redeemed' : 'active', i < 3 ? 'paid' : 'pending', Math.floor(Math.random() * 1000) + 500]);
+    } catch { /* ignore */ }
   }
 
-  // Seed marketplace listings
+  // Marketplace listings
   const listingItems = [
-    { item: sampleCards[2].code, type: 'card', price: 249, seller: demoId },
-    { item: sampleCards[5].code, type: 'card', price: 89, seller: demoId },
-    { item: sampleCards[7].code, type: 'card', price: 79, seller: demoId },
-    { item: `XM-ET-0004`, type: 'eticket', price: 1599, seller: demoId },
+    { item: 'XM-CARD-0003', type: 'card', price: 249 },
+    { item: 'XM-CARD-0006', type: 'card', price: 89 },
+    { item: 'XM-CARD-0008', type: 'card', price: 79 },
+    { item: 'XM-ET-0004', type: 'eticket', price: 1599 },
   ];
   for (const l of listingItems) {
     try {
-      const existingList = await sql.query('SELECT id FROM marketplace_listings WHERE item_id = $1', [l.item]);
-      if ((existingList as any).length === 0) {
-        await sql`INSERT INTO marketplace_listings (id, seller_id, item_type, item_id, price, status) VALUES (${uuidv4()}, ${l.seller}, ${l.type}, ${l.item}, ${l.price}, 'active')`;
+      const exists = await pool.query('SELECT id FROM marketplace_listings WHERE item_id = $1', [l.item]);
+      if (exists.rows.length === 0) {
+        await pool.query('INSERT INTO marketplace_listings (id, seller_id, item_type, item_id, price, status) VALUES ($1, $2, $3, $4, $5, \'active\')',
+          [uuidv4(), demoId, l.type, l.item, l.price]);
       }
     } catch { /* ignore */ }
   }
 
-  // Seed points transactions
-  const pointReasons = ['card_scan', 'card_scan', 'card_scan', 'journey_complete', 'card_scan', 'card_scan', 'card_scan', 'bonus'];
-  const pointAmounts = [300, 400, 100, 1000, 500, 300, 100, 200];
+  // Points transactions
+  const reasons = ['card_scan', 'card_scan', 'card_scan', 'journey_complete', 'card_scan', 'card_scan', 'card_scan', 'bonus'];
+  const amounts = [300, 400, 100, 1000, 500, 300, 100, 200];
   for (let i = 0; i < 8; i++) {
     try {
-      await sql.query("INSERT INTO points_transactions (id, user_id, amount, reason, created_at) VALUES ($1, $2, $3, $4, NOW() - interval '" + String((8 - i) * 2) + " days') ON CONFLICT DO NOTHING", [
-        uuidv4(), demoId, pointAmounts[i], pointReasons[i],
-      ]);
+      await pool.query(`INSERT INTO points_transactions (id, user_id, amount, reason, created_at) VALUES ($1, $2, $3, $4, NOW() - interval '${(8-i)*2} days') ON CONFLICT DO NOTHING`,
+        [uuidv4(), demoId, amounts[i], reasons[i]]);
     } catch { /* ignore */ }
   }
 
-  // Always update demo user stats
-  // Always update demo user stats
-  await sql`UPDATE users SET total_points = 2900, rank_points = 2900, rank = 'gold', collection_count = 25, updated_at = NOW() WHERE id = ${demoId}`;
-
-  // Seed sample journeys
+  // Journeys
   const journeys = [
-    { name: 'Batman Rogues Gallery', desc: 'Collect all Batman villain metal cards', ip: 'DC Comics', items: '["XM-CARD-0001","XM-CARD-0007"]', points: 1000 },
-    { name: 'Marvel Legends', desc: 'Collect all Marvel metal cards', ip: 'Marvel', items: '["XM-CARD-0003","XM-CARD-0004","XM-CARD-0008"]', points: 1500 },
-    { name: 'Dark Knights', desc: 'Collect Batman metal cards', ip: 'DC Comics', items: '["XM-CARD-0001","XM-CARD-0006"]', points: 750 },
+    ['Batman Rogues Gallery', 'Collect all Batman villain metal cards', 'DC Comics', '["XM-CARD-0001","XM-CARD-0007"]', 1000],
+    ['Marvel Legends', 'Collect all Marvel metal cards', 'Marvel', '["XM-CARD-0003","XM-CARD-0004","XM-CARD-0008"]', 1500],
+    ['Dark Knights', 'Collect Batman metal cards', 'DC Comics', '["XM-CARD-0001","XM-CARD-0006"]', 750],
   ];
-
-  for (const j of journeys) {
+  for (const [name, desc, ip, items, points] of journeys) {
     try {
-      await sql`INSERT INTO collection_journeys (id, name, description, ip, required_items, reward_points) VALUES (${uuidv4()}, ${j.name}, ${j.desc}, ${j.ip}, ${j.items}, ${j.points})`;
-    } catch { /* ignore duplicate */ }
+      await pool.query('INSERT INTO collection_journeys (id, name, description, ip, required_items, reward_points) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING',
+        [uuidv4(), name, desc, ip, items, points]);
+    } catch { /* ignore */ }
   }
 
-  // Seed sample products
+  // Products
   const products = [
-    { name: 'Batman Who Laughs Statue', ip: 'DC Comics', desc: '1/4 Scale Premium Collectible Statue', type: 'statue', size: 500, price: 1599, status: 'announced' },
-    { name: 'Wonder Woman Golden Armor', ip: 'DC Comics', desc: '1/4 Scale Premium Collectible Statue', type: 'statue', size: 300, price: 1899, status: 'preorder' },
-    { name: 'Iron Man Mark LXXXV', ip: 'Marvel', desc: '1/4 Scale Premium Collectible Statue', type: 'statue', size: 400, price: 1699, status: 'announced' },
+    ['Batman Who Laughs Statue', 'DC Comics', '1/4 Scale Premium Collectible Statue', 'statue', 500, 1599, 'announced'],
+    ['Wonder Woman Golden Armor', 'DC Comics', '1/4 Scale Premium Collectible Statue', 'statue', 300, 1899, 'preorder'],
+    ['Iron Man Mark LXXXV', 'Marvel', '1/4 Scale Premium Collectible Statue', 'statue', 400, 1699, 'announced'],
   ];
-
-  for (const p of products) {
+  for (const [name, ip, desc, type, size, price, status] of products) {
     try {
-      await sql`INSERT INTO products (id, name, ip, description, product_type, edition_size, price, status) VALUES (${uuidv4()}, ${p.name}, ${p.ip}, ${p.desc}, ${p.type}, ${p.size}, ${p.price}, ${p.status})`;
-    } catch { /* ignore duplicate */ }
+      await pool.query('INSERT INTO products (id, name, ip, description, product_type, edition_size, price, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT DO NOTHING',
+        [uuidv4(), name, ip, desc, type, size, price, status]);
+    } catch { /* ignore */ }
   }
 
   console.log('Seed complete.');

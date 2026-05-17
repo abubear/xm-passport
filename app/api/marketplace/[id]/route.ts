@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { sql, query } from '@/lib/db';
+import { query } from '@/lib/db';
 
 // PUT - buy listing
 export async function PUT(
