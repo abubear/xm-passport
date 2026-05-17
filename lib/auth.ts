@@ -5,6 +5,18 @@ import { cookies } from 'next/headers';
 const JWT_SECRET = process.env.JWT_SECRET || 'xm-passport-dev-secret-change-in-production';
 const TOKEN_NAME = 'xm-passport-token';
 
+// CONCEPT MODE: demo user for preview without login
+const DEMO_USER_ID = '00000000-0000-0000-0000-000000000001';
+const DEMO_DISPLAY_NAME = 'Demo Collector';
+
+function createDemoToken(): string {
+  return jwt.sign(
+    { id: DEMO_USER_ID, email: 'demo@xmstudios.com', phone: null, display_name: DEMO_DISPLAY_NAME, rank: 'bronze', is_admin: 0, auth_provider: 'email' },
+    JWT_SECRET,
+    { expiresIn: '30d' }
+  );
+}
+
 export interface UserPayload {
   id: string;
   email: string | null;
@@ -48,7 +60,12 @@ export function setAuthCookie(token: string) {
 
 export function getAuthToken(): string | undefined {
   const cookieStore = cookies();
-  return cookieStore.get(TOKEN_NAME)?.value;
+  const token = cookieStore.get(TOKEN_NAME)?.value;
+  // CONCEPT MODE: auto-login as demo user when no auth
+  if (!token) {
+    return createDemoToken();
+  }
+  return token;
 }
 
 export function clearAuthCookie() {

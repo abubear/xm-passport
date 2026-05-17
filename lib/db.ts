@@ -214,6 +214,16 @@ export async function migrate() {
 export async function seed() {
   const hash = bcrypt.hashSync('admin123', 10);
 
+  // CONCEPT MODE: seed demo user
+  const demoId = '00000000-0000-0000-0000-000000000001';
+  const demoExists = await sql`SELECT id FROM users WHERE id = ${demoId}`;
+  if (demoExists.length === 0) {
+    await sql`
+      INSERT INTO users (id, email, display_name, collector_number, rank, total_points, rank_points, collection_count, verified_collector, is_admin, auth_provider)
+      VALUES (${demoId}, 'demo@xmstudios.com', 'Demo Collector', 'XM-DEMO01', 'bronze', 0, 0, 0, 0, 0, 'email')
+    `;
+  }
+
   const existing = await sql`SELECT id FROM users WHERE email = 'admin@xmstudios.com'`;
   if (existing.length === 0) {
     await sql`
@@ -238,10 +248,16 @@ export async function seed() {
   for (const card of sampleCards) {
     try {
       await sql`
-        INSERT INTO cards (id, card_code, product_name, ip, rarity, card_type, edition_size, points_value, status)
-        VALUES (${uuidv4()}, ${card.code}, ${card.name}, ${card.ip}, ${card.rarity}, 'metal', ${card.rarity === 'legendary' ? 100 : 500}, ${card.points}, 'active')
+        INSERT INTO cards (id, card_code, product_name, ip, rarity, card_type, edition_size, points_value, status, owner_id, scanned_at)
+        VALUES (${uuidv4()}, ${card.code}, ${card.name}, ${card.ip}, ${card.rarity}, 'metal', ${card.rarity === 'legendary' ? 100 : 500}, ${card.points}, 'active', ${demoId}, NOW())
       `;
     } catch (e) { /* ignore duplicate */ }
+  }
+
+  // Give demo user some points
+  const demoPoints = await sql`SELECT total_points FROM users WHERE id = ${demoId}`;
+  if (demoPoints.length > 0 && Number(demoPoints[0].total_points) === 0) {
+    await sql`UPDATE users SET total_points = 1250, rank_points = 1250, rank = 'silver', collection_count = 8 WHERE id = ${demoId}`;
   }
 
   // Seed sample journeys
