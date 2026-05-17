@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 
 // GET - list marketplace listings
@@ -9,15 +9,14 @@ export async function GET() {
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const db = getDb();
-    const listings = db.prepare(`
+    const listings = await sql(`
       SELECT ml.*, u.display_name as seller_name, u.collector_number as seller_number
       FROM marketplace_listings ml
       JOIN users u ON ml.seller_id = u.id
       WHERE ml.status = 'active'
       ORDER BY ml.created_at DESC
       LIMIT 50
-    `).all();
+    `);
 
     return NextResponse.json({ listings });
   } catch (err) {
@@ -45,14 +44,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid item_type' }, { status: 400 });
     }
 
-    const db = getDb();
-
     // Verify ownership
     let item;
     if (item_type === 'card') {
-      item = db.prepare('SELECT * FROM cards WHERE id = ? AND owner_id = ?').get(item_id, payload.id);
+      const rows = await sql('SELECT * FROM cards WHERE id = $1 AND owner_id = $2', [item_id, payload.id]);
+      item = rows[0] || null;
     } else if (item_type === 'eticket') {
-      item = db.prepare('SELECT * FROM etickets WHERE id = ? AND owner_id = ?').get(item_id, payload.id);
+      const rows = await sql('SELECT * FROM etickets WHERE id = $1 AND owner_id = $2', [item_id, payload.id]);
+      item = rows[0] || null;
     }
 
     if (!item) {
@@ -60,21 +59,24 @@ export async function POST(req: NextRequest) {
     }
 
     // Check for existing active listing
-    const existing = db.prepare(
-      'SELECT id FROM marketplace_listings WHERE item_id = ? AND seller_id = ? AND status = ?'
-    ).get(item_id, payload.id, 'active');
+    const existingRows = await sql(
+      'SELECT id FROM marketplace_listings WHERE item_id = $1 AND seller_id = $2 AND status = $3',
+      [item_id, payload.id, 'active']
+    );
+    const existing = existingRows[0] || null;
 
     if (existing) {
       return NextResponse.json({ error: 'Item already listed' }, { status: 409 });
     }
 
     const id = uuidv4();
-    db.prepare(`
-      INSERT INTO marketplace_listings (id, seller_id, item_type, item_id, price)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(id, payload.id, item_type, item_id, price);
+    await sql(
+      'INSERT INTO marketplace_listings (id, seller_id, item_type, item_id, price) VALUES ($1, $2, $3, $4, $5)',
+      [id, payload.id, item_type, item_id, price]
+    );
 
-    const listing = db.prepare('SELECT * FROM marketplace_listings WHERE id = ?').get(id);
+    const listingRows = await sql('SELECT * FROM marketplace_listings WHERE id = $1', [id]);
+    const listing = listingRows[0] || null;
 
     return NextResponse.json({ listing }, { status: 201 });
   } catch (err) {

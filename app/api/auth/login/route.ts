@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 import { comparePassword, signToken, setAuthCookie } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
@@ -7,7 +7,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { email, phone, password, auth_provider, provider_id } = body;
 
-    const db = getDb();
     const provider = auth_provider || 'email';
 
     // --- Email login ---
@@ -16,7 +15,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
       }
 
-      const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
+      const rows = await sql('SELECT * FROM users WHERE email = $1', [email]);
+      const user = rows[0] || null;
       if (!user) {
         return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
       }
@@ -57,7 +57,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Phone number required' }, { status: 400 });
       }
 
-      const user = db.prepare('SELECT * FROM users WHERE phone = ? AND auth_provider = ?').get(phone, 'phone') as any;
+      const rows = await sql('SELECT * FROM users WHERE phone = $1 AND auth_provider = $2', [phone, 'phone']);
+      const user = rows[0] || null;
       if (!user) {
         return NextResponse.json({ error: 'Phone not registered' }, { status: 401 });
       }
@@ -93,9 +94,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Provider ID required' }, { status: 400 });
       }
 
-      const user = db.prepare(
-        'SELECT * FROM users WHERE auth_provider = ? AND provider_id = ?'
-      ).get(provider, provider_id) as any;
+      const rows = await sql(
+        'SELECT * FROM users WHERE auth_provider = $1 AND provider_id = $2',
+        [provider, provider_id]
+      );
+      const user = rows[0] || null;
 
       if (!user) {
         return NextResponse.json({ error: 'Account not found. Please register first.' }, { status: 401 });

@@ -3,7 +3,7 @@
 // extracts user info, creates/finds user, sets JWT cookie.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 import { signToken, setAuthCookie } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -25,33 +25,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid Google credential' }, { status: 400 });
     }
 
-    const db = getDb();
-
     // Find by provider
-    let user = db.prepare(
-      "SELECT * FROM users WHERE auth_provider = 'google' AND provider_id = ?"
-    ).get(sub) as any;
+    let userRows = await sql(
+      "SELECT * FROM users WHERE auth_provider = 'google' AND provider_id = $1", [sub]
+    );
+    let user = userRows[0] || null;
 
     // Also check email match (for users who previously registered with email)
     if (!user && email) {
-      user = db.prepare("SELECT * FROM users WHERE email = ? AND auth_provider = 'email'").get(email) as any;
+      const emailRows = await sql(
+        "SELECT * FROM users WHERE email = $1 AND auth_provider = 'email'", [email]
+      );
+      user = emailRows[0] || null;
       if (user) {
         // Link Google to existing email account
-        db.prepare("UPDATE users SET auth_provider = 'google', provider_id = ? WHERE id = ?").run(sub, user.id);
+        await sql(
+          "UPDATE users SET auth_provider = 'google', provider_id = $1 WHERE id = $2", [sub, user.id]
+        );
       }
     }
 
     if (!user) {
       const id = uuidv4();
-      const count = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
-      const collectorNumber = `XM-${String(count.count + 1).padStart(5, '0')}`;
+      const countRows = await sql('SELECT COUNT(*) as count FROM users');
+      const count = Number(countRows[0]?.count || 0);
+      const collectorNumber = `XM-${String(count + 1).padStart(5, '0')}`;
 
-      db.prepare(`
+      await sql(`
         INSERT INTO users (id, email, display_name, avatar_url, collector_number, auth_provider, provider_id, rank)
-        VALUES (?, ?, ?, ?, ?, 'google', ?, 'bronze')
-      `).run(id, email || `${sub}@google.com`, name || `Collector ${collectorNumber}`, picture || null, collectorNumber, sub);
+        VALUES ($1, $2, $3, $4, $5, 'google', $6, 'bronze')
+      `, [id, email || `${sub}@google.com`, name || `Collector ${collectorNumber}`, picture || null, collectorNumber, sub]);
 
-      user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+      const newUserRows = await sql('SELECT * FROM users WHERE id = $1', [id]);
+      user = newUserRows[0] || null;
     }
 
     const token = signToken({

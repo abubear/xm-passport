@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 
 export async function GET() {
   const token = getAuthToken();
@@ -10,12 +10,13 @@ export async function GET() {
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const db = getDb();
-    const transactions = db.prepare(
-      'SELECT * FROM points_transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 50'
-    ).all(payload.id);
+    const transactions = await sql(
+      'SELECT * FROM points_transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50',
+      [payload.id]
+    );
 
-    const user = db.prepare('SELECT total_points, rank, rank_points FROM users WHERE id = ?').get(payload.id);
+    const userRows = await sql('SELECT total_points, rank, rank_points FROM users WHERE id = $1', [payload.id]);
+    const user = userRows[0] || null;
 
     return NextResponse.json({ transactions, points: user });
   } catch (err) {

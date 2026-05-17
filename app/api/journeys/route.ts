@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 
 export async function GET() {
   const token = getAuthToken();
@@ -10,11 +10,10 @@ export async function GET() {
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const db = getDb();
-    const journeys = db.prepare('SELECT * FROM collection_journeys').all();
-    const userCards = db.prepare('SELECT card_code FROM cards WHERE owner_id = ?').all(payload.id) as { card_code: string }[];
+    const journeys = await sql('SELECT * FROM collection_journeys');
+    const userCards = await sql('SELECT card_code FROM cards WHERE owner_id = $1', [payload.id]) as { card_code: string }[];
     const userCardCodes = new Set(userCards.map((c: any) => c.card_code));
-    const userJourneys = db.prepare('SELECT * FROM user_journeys WHERE user_id = ?').all(payload.id);
+    const userJourneys = await sql('SELECT * FROM user_journeys WHERE user_id = $1', [payload.id]);
 
     const enriched = (journeys as any[]).map((j: any) => {
       const required: string[] = JSON.parse(j.required_items || '[]');

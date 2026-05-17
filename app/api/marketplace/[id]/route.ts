@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 
 // PUT - buy listing
 export async function PUT(
@@ -14,8 +14,8 @@ export async function PUT(
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const db = getDb();
-    const listing = db.prepare('SELECT * FROM marketplace_listings WHERE id = ?').get(params.id) as any;
+    const listingRows = await sql('SELECT * FROM marketplace_listings WHERE id = $1', [params.id]);
+    const listing = listingRows[0] || null;
 
     if (!listing) {
       return NextResponse.json({ error: 'Listing not found' }, { status: 404 });
@@ -30,22 +30,20 @@ export async function PUT(
     }
 
     // Process purchase - transfer ownership
-    const now = new Date().toISOString();
-
-    db.prepare(`
-      UPDATE marketplace_listings
-      SET status = 'sold', buyer_id = ?, sold_at = ?
-      WHERE id = ?
-    `).run(payload.id, now, params.id);
+    await sql(
+      "UPDATE marketplace_listings SET status = 'sold', buyer_id = $1, sold_at = NOW() WHERE id = $2",
+      [payload.id, params.id]
+    );
 
     // Transfer item ownership
     if (listing.item_type === 'card') {
-      db.prepare('UPDATE cards SET owner_id = ? WHERE id = ?').run(payload.id, listing.item_id);
+      await sql('UPDATE cards SET owner_id = $1 WHERE id = $2', [payload.id, listing.item_id]);
     } else if (listing.item_type === 'eticket') {
-      db.prepare('UPDATE etickets SET owner_id = ? WHERE id = ?').run(payload.id, listing.item_id);
+      await sql('UPDATE etickets SET owner_id = $1 WHERE id = $2', [payload.id, listing.item_id]);
     }
 
-    const updated = db.prepare('SELECT * FROM marketplace_listings WHERE id = ?').get(params.id);
+    const updatedRows = await sql('SELECT * FROM marketplace_listings WHERE id = $1', [params.id]);
+    const updated = updatedRows[0] || null;
 
     return NextResponse.json({ listing: updated, message: 'Purchase complete. Item transferred to your vault.' });
   } catch (err) {
@@ -66,8 +64,8 @@ export async function DELETE(
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const db = getDb();
-    const listing = db.prepare('SELECT * FROM marketplace_listings WHERE id = ?').get(params.id) as any;
+    const listingRows = await sql('SELECT * FROM marketplace_listings WHERE id = $1', [params.id]);
+    const listing = listingRows[0] || null;
 
     if (!listing) {
       return NextResponse.json({ error: 'Listing not found' }, { status: 404 });
@@ -77,7 +75,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Not your listing' }, { status: 403 });
     }
 
-    db.prepare("UPDATE marketplace_listings SET status = 'cancelled' WHERE id = ?").run(params.id);
+    await sql("UPDATE marketplace_listings SET status = 'cancelled' WHERE id = $1", [params.id]);
 
     return NextResponse.json({ message: 'Listing cancelled' });
   } catch (err) {

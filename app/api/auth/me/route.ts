@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 
 export async function GET() {
   const token = getAuthToken();
@@ -13,8 +13,8 @@ export async function GET() {
     return NextResponse.json({ user: null }, { status: 401 });
   }
 
-  const db = getDb();
-  const user = db.prepare('SELECT id, email, display_name, collector_number, rank, total_points, rank_points, collection_count, verified_collector, is_admin, avatar_url FROM users WHERE id = ?').get(payload.id) as any;
+  const rows = await sql('SELECT id, email, display_name, collector_number, rank, total_points, rank_points, collection_count, verified_collector, is_admin, avatar_url FROM users WHERE id = $1', [payload.id]);
+  const user = rows[0] || null;
 
   if (!user) {
     return NextResponse.json({ user: null }, { status: 401 });

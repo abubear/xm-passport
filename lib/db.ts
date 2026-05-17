@@ -1,43 +1,31 @@
-import Database from 'better-sqlite3';
-import path from 'path';
+import { neon } from '@neondatabase/serverless';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 
-const DB_PATH = path.join(process.cwd(), 'data', 'xm-passport.db');
+const connectionString = process.env.POSTGRES_URL!;
+export const sql = neon(connectionString);
 
-let db: Database.Database;
+let initialized = false;
 
-let migrated = false;
-
-export function getDb(): Database.Database {
-  if (!db) {
-    db = new Database(DB_PATH);
-    db.pragma('journal_mode = WAL');
-    db.pragma('foreign_keys = ON');
+export async function initDb() {
+  if (initialized) return;
+  initialized = true;
+  await migrate();
+  const rows = await sql`SELECT COUNT(*) as count FROM cards`;
+  if (rows[0]?.count === 0 || rows[0]?.count === BigInt(0)) {
+    await seed();
   }
-  if (!migrated) {
-    migrated = true;
-    migrate();
-    // Auto-seed if DB is empty
-    const cardCount = db.prepare('SELECT COUNT(*) as count FROM cards').get() as { count: number };
-    if (cardCount.count === 0) {
-      seed();
-    }
-  }
-  return db;
 }
 
-export function migrate() {
-  const db = getDb();
+export async function migrate() {
+  // Migrations
+  await sql`CREATE TABLE IF NOT EXISTS _migrations (version INTEGER PRIMARY KEY)`;
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS _migrations (version INTEGER PRIMARY KEY);
-  `);
-
-  const currentVersion = (db.prepare('SELECT MAX(version) as v FROM _migrations').get() as any)?.v || 0;
+  const versionRows = await sql`SELECT COALESCE(MAX(version), 0) as v FROM _migrations`;
+  const currentVersion = Number(versionRows[0]?.v || 0);
 
   if (currentVersion < 1) {
-    db.exec(`
+    await sql`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         email TEXT UNIQUE,
@@ -55,10 +43,12 @@ export function migrate() {
         collection_count INTEGER DEFAULT 0,
         verified_collector INTEGER DEFAULT 0,
         is_admin INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT (datetime('now')),
-        updated_at TEXT DEFAULT (datetime('now'))
-      );
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
 
+    await sql`
       CREATE TABLE IF NOT EXISTS cards (
         id TEXT PRIMARY KEY,
         card_code TEXT UNIQUE NOT NULL,
@@ -72,11 +62,13 @@ export function migrate() {
         image_url TEXT,
         owner_id TEXT REFERENCES users(id),
         status TEXT DEFAULT 'active',
-        scanned_at TEXT,
+        scanned_at TIMESTAMP,
         points_value INTEGER DEFAULT 100,
-        created_at TEXT DEFAULT (datetime('now'))
-      );
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
 
+    await sql`
       CREATE TABLE IF NOT EXISTS etickets (
         id TEXT PRIMARY KEY,
         ticket_code TEXT UNIQUE NOT NULL,
@@ -86,12 +78,14 @@ export function migrate() {
         status TEXT DEFAULT 'active',
         payment_status TEXT DEFAULT 'reserved',
         purchase_price REAL,
-        redemption_date TEXT,
-        expiry_date TEXT,
+        redemption_date TIMESTAMP,
+        expiry_date TIMESTAMP,
         points_earned INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT (datetime('now'))
-      );
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
 
+    await sql`
       CREATE TABLE IF NOT EXISTS products (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -101,12 +95,14 @@ export function migrate() {
         edition_size INTEGER,
         price REAL,
         image_url TEXT,
-        release_date TEXT,
+        release_date TIMESTAMP,
         status TEXT DEFAULT 'draft',
         e_ticket_enabled INTEGER DEFAULT 1,
-        created_at TEXT DEFAULT (datetime('now'))
-      );
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
 
+    await sql`
       CREATE TABLE IF NOT EXISTS marketplace_listings (
         id TEXT PRIMARY KEY,
         seller_id TEXT REFERENCES users(id),
@@ -116,19 +112,23 @@ export function migrate() {
         currency TEXT DEFAULT 'SGD',
         status TEXT DEFAULT 'active',
         buyer_id TEXT REFERENCES users(id),
-        sold_at TEXT,
-        created_at TEXT DEFAULT (datetime('now'))
-      );
+        sold_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
 
+    await sql`
       CREATE TABLE IF NOT EXISTS points_transactions (
         id TEXT PRIMARY KEY,
         user_id TEXT REFERENCES users(id),
         amount INTEGER NOT NULL,
         reason TEXT NOT NULL,
         reference_id TEXT,
-        created_at TEXT DEFAULT (datetime('now'))
-      );
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
 
+    await sql`
       CREATE TABLE IF NOT EXISTS collection_journeys (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -138,123 +138,77 @@ export function migrate() {
         reward_points INTEGER DEFAULT 500,
         reward_rank_boost INTEGER DEFAULT 0,
         badge_url TEXT,
-        created_at TEXT DEFAULT (datetime('now'))
-      );
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
 
+    await sql`
       CREATE TABLE IF NOT EXISTS user_journeys (
         id TEXT PRIMARY KEY,
         user_id TEXT REFERENCES users(id),
         journey_id TEXT REFERENCES collection_journeys(id),
         progress TEXT DEFAULT '{}',
         completed INTEGER DEFAULT 0,
-        completed_at TEXT,
-        created_at TEXT DEFAULT (datetime('now'))
-      );
-    `);
+        completed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
 
-    db.prepare('INSERT INTO _migrations (version) VALUES (1)').run();
+    await sql`INSERT INTO _migrations (version) VALUES (1)`;
   }
 
-  // v2: Add multi-auth fields if missing (for DBs created before v2)
   if (currentVersion < 2) {
-    // Add new columns if they don't exist (ignore errors if they do)
-    const newCols = [
-      "ALTER TABLE users ADD COLUMN phone TEXT",
-      "ALTER TABLE users ADD COLUMN auth_provider TEXT DEFAULT 'email'",
-      "ALTER TABLE users ADD COLUMN provider_id TEXT",
-      "ALTER TABLE users ADD COLUMN wechat_unionid TEXT",
-    ];
-    for (const sql of newCols) {
-      try { db.exec(sql); } catch (e) { /* column already exists */ }
+    // Add columns if missing (Postgres ignores IF NOT EXISTS for ALTER TABLE)
+    const cols = ['phone', 'auth_provider', 'provider_id', 'wechat_unionid'];
+    for (const col of cols) {
+      try {
+        if (col === 'phone') await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT`;
+        else if (col === 'auth_provider') await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider TEXT DEFAULT 'email'`;
+        else if (col === 'provider_id') await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS provider_id TEXT`;
+        else if (col === 'wechat_unionid') await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS wechat_unionid TEXT`;
+      } catch (e) { /* column exists */ }
     }
-    // Make email and password_hash nullable (SQLite doesn't support ALTER COLUMN, 
-    // but new rows will be created correctly; existing rows have values already)
-    db.prepare('INSERT INTO _migrations (version) VALUES (2)').run();
+    await sql`INSERT INTO _migrations (version) VALUES (2)`;
   }
 
-  // v3: Recreate users table with nullable email/password for multi-auth
-  // (SQLite can't ALTER COLUMN constraints, must recreate table)
   if (currentVersion < 3) {
-    try {
-      db.pragma('foreign_keys = OFF');
-      db.exec(`
-        CREATE TABLE IF NOT EXISTS users_new (
-          id TEXT PRIMARY KEY,
-          email TEXT UNIQUE,
-          phone TEXT UNIQUE,
-          password_hash TEXT,
-          display_name TEXT NOT NULL,
-          auth_provider TEXT DEFAULT 'email',
-          provider_id TEXT,
-          wechat_unionid TEXT,
-          collector_number TEXT,
-          avatar_url TEXT,
-          total_points INTEGER DEFAULT 0,
-          rank TEXT DEFAULT 'bronze',
-          rank_points INTEGER DEFAULT 0,
-          collection_count INTEGER DEFAULT 0,
-          verified_collector INTEGER DEFAULT 0,
-          is_admin INTEGER DEFAULT 0,
-          created_at TEXT DEFAULT (datetime('now')),
-          updated_at TEXT DEFAULT (datetime('now'))
-        );
-        INSERT INTO users_new SELECT
-          id, email, phone, password_hash, display_name,
-          COALESCE(auth_provider, 'email') as auth_provider,
-          provider_id, wechat_unionid, collector_number, avatar_url,
-          total_points, rank, rank_points, collection_count,
-          verified_collector, is_admin, created_at, updated_at
-        FROM users;
-        DROP TABLE users;
-        ALTER TABLE users_new RENAME TO users;
-      `);
-      db.pragma('foreign_keys = ON');
-      console.log('Migration v3: users table recreated with nullable auth fields');
-    } catch (e) {
-      console.error('Migration v3 failed:', (e as Error).message);
-      db.pragma('foreign_keys = ON');
-    }
-    db.prepare('INSERT INTO _migrations (version) VALUES (3)').run();
+    // Postgres handles nullable columns by default - no rebuild needed
+    await sql`INSERT INTO _migrations (version) VALUES (3)`;
   }
 
-  // v4: Collector profile fields
   if (currentVersion < 4) {
-    const profileCols = [
-      "ALTER TABLE users ADD COLUMN bio TEXT",
-      "ALTER TABLE users ADD COLUMN location TEXT",
-      "ALTER TABLE users ADD COLUMN collection_prefs TEXT DEFAULT '[]'",
-      "ALTER TABLE users ADD COLUMN public_profile INTEGER DEFAULT 0",
-      "ALTER TABLE users ADD COLUMN social_links TEXT DEFAULT '{}'",
-    ];
-    for (const sql of profileCols) {
-      try { db.exec(sql); } catch (e) { /* column already exists */ }
+    const profileCols = ['bio', 'location', 'collection_prefs', 'public_profile', 'social_links'];
+    for (const col of profileCols) {
+      try {
+        if (col === 'bio') await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT`;
+        else if (col === 'location') await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS location TEXT`;
+        else if (col === 'collection_prefs') await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS collection_prefs TEXT DEFAULT '[]'`;
+        else if (col === 'public_profile') await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS public_profile INTEGER DEFAULT 0`;
+        else if (col === 'social_links') await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS social_links TEXT DEFAULT '{}'`;
+      } catch (e) { /* exists */ }
     }
-    db.prepare('INSERT INTO _migrations (version) VALUES (4)').run();
-    console.log('Migration v4: profile fields added');
+    await sql`INSERT INTO _migrations (version) VALUES (4)`;
   }
 
-  // v5: Language preference
   if (currentVersion < 5) {
-    try { db.exec("ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en'"); } catch (e) { /* exists */ }
-    db.prepare('INSERT INTO _migrations (version) VALUES (5)').run();
-    console.log('Migration v5: language field added');
+    try {
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'en'`;
+    } catch (e) { /* exists */ }
+    await sql`INSERT INTO _migrations (version) VALUES (5)`;
   }
 
   console.log('Migration complete. Version:', currentVersion < 1 ? 1 : currentVersion);
 }
 
-export function seed() {
-  const db = getDb();
-
-  const adminId = uuidv4();
+export async function seed() {
   const hash = bcrypt.hashSync('admin123', 10);
 
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get('admin@xmstudios.com');
-  if (!existing) {
-    db.prepare(`
+  const existing = await sql`SELECT id FROM users WHERE email = 'admin@xmstudios.com'`;
+  if (existing.length === 0) {
+    await sql`
       INSERT INTO users (id, email, password_hash, display_name, collector_number, rank, verified_collector, is_admin, auth_provider)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'email')
-    `).run(adminId, 'admin@xmstudios.com', hash, 'XM Admin', 'XM-00000', 'master', 1, 1);
+      VALUES (${uuidv4()}, 'admin@xmstudios.com', ${hash}, 'XM Admin', 'XM-00000', 'master', 1, 1, 'email')
+    `;
     console.log('Admin user created: admin@xmstudios.com / admin123');
   }
 
@@ -270,40 +224,46 @@ export function seed() {
     { code: 'XM-CARD-0008', name: 'Spider-Man Classic', ip: 'Marvel', rarity: 'common', points: 100 },
   ];
 
-  const insertCard = db.prepare(`
-    INSERT OR IGNORE INTO cards (id, card_code, product_name, ip, rarity, card_type, edition_size, points_value, status)
-    VALUES (?, ?, ?, ?, ?, 'metal', ?, ?, 'active')
-  `);
-
   for (const card of sampleCards) {
-    insertCard.run(uuidv4(), card.code, card.name, card.ip, card.rarity, card.rarity === 'legendary' ? 100 : 500, card.points);
+    try {
+      await sql`
+        INSERT INTO cards (id, card_code, product_name, ip, rarity, card_type, edition_size, points_value, status)
+        VALUES (${uuidv4()}, ${card.code}, ${card.name}, ${card.ip}, ${card.rarity}, 'metal', ${card.rarity === 'legendary' ? 100 : 500}, ${card.points}, 'active')
+      `;
+    } catch (e) { /* ignore duplicate */ }
   }
 
   // Seed sample journeys
-  const journeyInsert = db.prepare(`
-    INSERT OR IGNORE INTO collection_journeys (id, name, description, ip, required_items, reward_points)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
+  const journeys = [
+    { name: 'Batman Rogues Gallery', desc: 'Collect all Batman villain metal cards', ip: 'DC Comics', items: '["XM-CARD-0001","XM-CARD-0007"]', points: 1000 },
+    { name: 'Marvel Legends', desc: 'Collect all Marvel metal cards', ip: 'Marvel', items: '["XM-CARD-0003","XM-CARD-0004","XM-CARD-0008"]', points: 1500 },
+    { name: 'Dark Knights', desc: 'Collect Batman metal cards', ip: 'DC Comics', items: '["XM-CARD-0001","XM-CARD-0006"]', points: 750 },
+  ];
 
-  journeyInsert.run(uuidv4(), 'Batman Rogues Gallery', 'Collect all Batman villain metal cards', 'DC Comics', '["XM-CARD-0001","XM-CARD-0007"]', 1000);
-  journeyInsert.run(uuidv4(), 'Marvel Legends', 'Collect all Marvel metal cards', 'Marvel', '["XM-CARD-0003","XM-CARD-0004","XM-CARD-0008"]', 1500);
-  journeyInsert.run(uuidv4(), 'Dark Knights', 'Collect Batman metal cards', 'DC Comics', '["XM-CARD-0001","XM-CARD-0006"]', 750);
+  for (const j of journeys) {
+    try {
+      await sql`
+        INSERT INTO collection_journeys (id, name, description, ip, required_items, reward_points)
+        VALUES (${uuidv4()}, ${j.name}, ${j.desc}, ${j.ip}, ${j.items}, ${j.points})
+      `;
+    } catch (e) { /* ignore duplicate */ }
+  }
 
   // Seed sample products
-  const productInsert = db.prepare(`
-    INSERT OR IGNORE INTO products (id, name, ip, description, product_type, edition_size, price, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
+  const products = [
+    { name: 'Batman Who Laughs Statue', ip: 'DC Comics', desc: '1/4 Scale Premium Collectible Statue', type: 'statue', size: 500, price: 1599, status: 'announced' },
+    { name: 'Wonder Woman Golden Armor', ip: 'DC Comics', desc: '1/4 Scale Premium Collectible Statue', type: 'statue', size: 300, price: 1899, status: 'preorder' },
+    { name: 'Iron Man Mark LXXXV', ip: 'Marvel', desc: '1/4 Scale Premium Collectible Statue', type: 'statue', size: 400, price: 1699, status: 'announced' },
+  ];
 
-  productInsert.run(uuidv4(), 'Batman Who Laughs Statue', 'DC Comics', '1/4 Scale Premium Collectible Statue', 'statue', 500, 1599, 'announced');
-  productInsert.run(uuidv4(), 'Wonder Woman Golden Armor', 'DC Comics', '1/4 Scale Premium Collectible Statue', 'statue', 300, 1899, 'preorder');
-  productInsert.run(uuidv4(), 'Iron Man Mark LXXXV', 'Marvel', '1/4 Scale Premium Collectible Statue', 'statue', 400, 1699, 'announced');
+  for (const p of products) {
+    try {
+      await sql`
+        INSERT INTO products (id, name, ip, description, product_type, edition_size, price, status)
+        VALUES (${uuidv4()}, ${p.name}, ${p.ip}, ${p.desc}, ${p.type}, ${p.size}, ${p.price}, ${p.status})
+      `;
+    } catch (e) { /* ignore duplicate */ }
+  }
 
   console.log('Seed complete.');
-}
-
-if (require.main === module) {
-  const cmd = process.argv[2] || 'migrate';
-  if (cmd === 'seed') seed();
-  else migrate();
 }

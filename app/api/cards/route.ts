@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 
 export async function GET() {
   const token = getAuthToken();
@@ -10,10 +10,7 @@ export async function GET() {
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const db = getDb();
-    const cards = db.prepare(
-      'SELECT * FROM cards WHERE owner_id = ? ORDER BY scanned_at DESC'
-    ).all(payload.id);
+    const cards = await sql('SELECT * FROM cards WHERE owner_id = $1 ORDER BY scanned_at DESC', [payload.id]);
 
     return NextResponse.json({ cards });
   } catch (err) {

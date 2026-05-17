@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { getDb } from '@/lib/db';
-import { v4 as uuidv4 } from 'uuid';
+import { sql } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   const token = getAuthToken();
@@ -12,9 +11,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const { ticket_id } = await req.json();
-    const db = getDb();
 
-    const ticket = db.prepare('SELECT * FROM etickets WHERE id = ? AND owner_id = ?').get(ticket_id, payload.id) as any;
+    const ticketRows = await sql('SELECT * FROM etickets WHERE id = $1 AND owner_id = $2', [ticket_id, payload.id]);
+    const ticket = ticketRows[0] || null;
 
     if (!ticket) {
       return NextResponse.json({ error: 'E-ticket not found' }, { status: 404 });
@@ -28,12 +27,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Payment required before redemption' }, { status: 400 });
     }
 
-    db.prepare(`
-      UPDATE etickets SET status = 'redeemed', redemption_date = datetime('now')
-      WHERE id = ?
-    `).run(ticket_id);
+    await sql(`
+      UPDATE etickets SET status = 'redeemed', redemption_date = NOW()
+      WHERE id = $1
+    `, [ticket_id]);
 
-    const updated = db.prepare('SELECT * FROM etickets WHERE id = ?').get(ticket_id);
+    const updatedRows = await sql('SELECT * FROM etickets WHERE id = $1', [ticket_id]);
+    const updated = updatedRows[0] || null;
 
     return NextResponse.json({ ticket: updated, message: 'E-ticket redeemed successfully' });
   } catch (err) {

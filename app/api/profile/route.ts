@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 
 // GET — fetch current user profile
 export async function GET() {
@@ -11,19 +11,19 @@ export async function GET() {
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const db = getDb();
-    const user = db.prepare(`
+    const userRows = await sql(`
       SELECT id, email, phone, display_name, collector_number, avatar_url,
              bio, location, collection_prefs, public_profile, social_links, language,
              rank, total_points, rank_points, collection_count, verified_collector,
              auth_provider, created_at
-      FROM users WHERE id = ?
-    `).get(payload.id);
+      FROM users WHERE id = $1
+    `, [payload.id]);
+    const user = userRows[0] || null;
 
-    const cards = db.prepare('SELECT COUNT(*) as count FROM cards WHERE owner_id = ?').get(payload.id) as { count: number };
-    const etickets = db.prepare('SELECT COUNT(*) as count FROM etickets WHERE owner_id = ?').get(payload.id) as { count: number };
+    const cardRows = await sql('SELECT COUNT(*) as count FROM cards WHERE owner_id = $1', [payload.id]);
+    const eticketRows = await sql('SELECT COUNT(*) as count FROM etickets WHERE owner_id = $1', [payload.id]);
 
-    return NextResponse.json({ user, stats: { cards: cards.count, etickets: etickets.count } });
+    return NextResponse.json({ user, stats: { cards: Number(cardRows[0]?.count), etickets: Number(eticketRows[0]?.count) } });
   } catch (err) {
     console.error('Profile GET error:', err);
     return NextResponse.json({ error: 'Failed to fetch profile' }, { status: 500 });
@@ -40,7 +40,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { display_name, bio, location, collection_prefs, public_profile, social_links, avatar_url } = body;
+    const { display_name, bio, location, collection_prefs, public_profile, social_links, avatar_url, language } = body;
 
     if (display_name !== undefined && (!display_name || display_name.trim().length === 0)) {
       return NextResponse.json({ error: 'Display name required' }, { status: 400 });
@@ -54,21 +54,19 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Bio must be under 300 characters' }, { status: 400 });
     }
 
-    const db = getDb();
-
-    db.prepare(`
+    await sql(`
       UPDATE users SET
-        display_name = COALESCE(NULLIF(?, ''), display_name),
-        bio = COALESCE(?, bio),
-        location = COALESCE(?, location),
-        collection_prefs = COALESCE(?, collection_prefs),
-        public_profile = COALESCE(?, public_profile),
-        social_links = COALESCE(?, social_links),
-        language = COALESCE(?, language),
-        avatar_url = COALESCE(?, avatar_url),
-        updated_at = datetime('now')
-      WHERE id = ?
-    `).run(
+        display_name = COALESCE(NULLIF($1, ''), display_name),
+        bio = COALESCE($2, bio),
+        location = COALESCE($3, location),
+        collection_prefs = COALESCE($4, collection_prefs),
+        public_profile = COALESCE($5, public_profile),
+        social_links = COALESCE($6, social_links),
+        language = COALESCE($7, language),
+        avatar_url = COALESCE($8, avatar_url),
+        updated_at = NOW()
+      WHERE id = $9
+    `, [
       display_name?.trim() || null,
       bio !== undefined ? bio : null,
       location !== undefined ? location : null,
@@ -78,14 +76,15 @@ export async function PUT(req: NextRequest) {
       language !== undefined ? language : null,
       avatar_url !== undefined ? avatar_url : null,
       payload.id
-    );
+    ]);
 
-    const updated = db.prepare(`
+    const updatedRows = await sql(`
       SELECT id, email, phone, display_name, collector_number, avatar_url,
              bio, location, collection_prefs, public_profile, social_links,
              rank, total_points
-      FROM users WHERE id = ?
-    `).get(payload.id);
+      FROM users WHERE id = $1
+    `, [payload.id]);
+    const updated = updatedRows[0] || null;
 
     return NextResponse.json({ user: updated });
   } catch (err) {
