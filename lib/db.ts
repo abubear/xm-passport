@@ -49,7 +49,7 @@ export async function query(text: string, params?: any[]) {
     initialized = true;
     try {
       await migrate();
-      const rows = await (ensureNeon() as any)('SELECT COUNT(*) as count FROM cards');
+      const rows = await (ensureNeon() as any).query('SELECT COUNT(*) as count FROM cards');
       if (rows[0]?.count === 0 || rows[0]?.count === BigInt(0)) {
         await seed();
       }
@@ -59,7 +59,7 @@ export async function query(text: string, params?: any[]) {
       throw e;
     }
   }
-  return (ensureNeon() as any)(text, params);
+  return (ensureNeon() as any).query(text, params);
 }
 
 export async function initDb() {
