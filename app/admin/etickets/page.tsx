@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -10,12 +10,11 @@ export default async function AdminETickets() {
   const payload = verifyToken(token);
   if (!payload || !payload.is_admin) redirect('/home');
 
-  const db = getDb();
-  const tickets = db.prepare(`
+  const tickets = await sql`
     SELECT et.*, u.display_name as owner_name, u.collector_number as owner_number
     FROM etickets et LEFT JOIN users u ON et.owner_id = u.id
     ORDER BY et.created_at DESC
-  `).all() as any[];
+  `;
 
   return (
     <div className="space-y-6">
@@ -34,7 +33,7 @@ export default async function AdminETickets() {
             </tr>
           </thead>
           <tbody>
-            {tickets.map((ticket) => (
+            {(tickets as any[]).map((ticket) => (
               <tr key={ticket.id} className="border-b border-gray-800/50 hover:bg-xm-dark/50">
                 <td className="p-3 text-xs text-xm-gold font-mono">{ticket.ticket_code}</td>
                 <td className="p-3 text-xs">{ticket.product_name}</td>

@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -10,17 +10,16 @@ export default async function AdminMarketplace() {
   const payload = verifyToken(token);
   if (!payload || !payload.is_admin) redirect('/home');
 
-  const db = getDb();
-  const listings = db.prepare(`
+  const listings = await sql`
     SELECT ml.*, s.display_name as seller_name, b.display_name as buyer_name
     FROM marketplace_listings ml
     JOIN users s ON ml.seller_id = s.id
     LEFT JOIN users b ON ml.buyer_id = b.id
     ORDER BY ml.created_at DESC
-  `).all() as any[];
+  `;
 
-  const activeListings = listings.filter((l: any) => l.status === 'active').length;
-  const soldListings = listings.filter((l: any) => l.status === 'sold').length;
+  const activeListings = (listings as any[]).filter((l: any) => l.status === 'active').length;
+  const soldListings = (listings as any[]).filter((l: any) => l.status === 'sold').length;
 
   return (
     <div className="space-y-6">
@@ -45,7 +44,7 @@ export default async function AdminMarketplace() {
             </tr>
           </thead>
           <tbody>
-            {listings.map((listing) => (
+            {(listings as any[]).map((listing) => (
               <tr key={listing.id} className="border-b border-gray-800/50 hover:bg-xm-dark/50">
                 <td className="p-3">
                   <span className={`text-xs px-2 py-0.5 rounded-full ${

@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -10,8 +10,7 @@ export default async function AdminProducts() {
   const payload = verifyToken(token);
   if (!payload || !payload.is_admin) redirect('/home');
 
-  const db = getDb();
-  const products = db.prepare('SELECT * FROM products ORDER BY created_at DESC').all() as any[];
+  const products = await sql`SELECT * FROM products ORDER BY created_at DESC`;
 
   return (
     <div className="space-y-6">
@@ -24,7 +23,7 @@ export default async function AdminProducts() {
         <div className="text-center py-12 text-gray-500">No products yet</div>
       ) : (
         <div className="space-y-3">
-          {products.map((product) => (
+          {(products as any[]).map((product) => (
             <div key={product.id} className="bg-xm-card rounded-xl border border-gray-800 p-4">
               <div className="flex items-start justify-between">
                 <div>

@@ -1,5 +1,4 @@
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { getDb } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 

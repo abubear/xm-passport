@@ -1,27 +1,24 @@
 import { getAuthToken, verifyToken, UserPayload } from '@/lib/auth';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 import { RANK_NAMES, RANK_THRESHOLDS, Card, CollectionJourney } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
-function getUser(userId: string) {
-  const db = getDb();
-  return db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
+async function getUser(userId: string) {
+  const rows = await sql('SELECT * FROM users WHERE id = $1', [userId]);
+  return rows[0] || null;
 }
 
-function getUserCards(userId: string): Card[] {
-  const db = getDb();
-  return db.prepare('SELECT * FROM cards WHERE owner_id = ? ORDER BY scanned_at DESC').all(userId) as Card[];
+async function getUserCards(userId: string): Promise<Card[]> {
+  return await sql('SELECT * FROM cards WHERE owner_id = $1 ORDER BY scanned_at DESC', [userId]) as Card[];
 }
 
-function getAvailableJourneys(): CollectionJourney[] {
-  const db = getDb();
-  return db.prepare('SELECT * FROM collection_journeys').all() as CollectionJourney[];
+async function getAvailableJourneys(): Promise<CollectionJourney[]> {
+  return await sql('SELECT * FROM collection_journeys') as CollectionJourney[];
 }
 
-function getUserJourneysStatus(userId: string) {
-  const db = getDb();
-  return db.prepare('SELECT * FROM user_journeys WHERE user_id = ?').all(userId) as any[];
+async function getUserJourneysStatus(userId: string) {
+  return await sql('SELECT * FROM user_journeys WHERE user_id = $1', [userId]);
 }
 
 function rankProgress(points: number): { currentRank: string; nextRank: string | null; progress: number; pointsNeeded: number } {
@@ -53,10 +50,10 @@ export default async function HomePage() {
   const payload = verifyToken(token) as UserPayload;
   if (!payload) return null;
 
-  const user = getUser(payload.id);
-  const cards = getUserCards(payload.id);
-  const journeys = getAvailableJourneys();
-  const userJourneys = getUserJourneysStatus(payload.id);
+  const user = await getUser(payload.id);
+  const cards = await getUserCards(payload.id);
+  const journeys = await getAvailableJourneys();
+  const userJourneys = await getUserJourneysStatus(payload.id);
   const progress = rankProgress(user?.total_points || 0);
 
   return (

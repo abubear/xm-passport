@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken, UserPayload } from '@/lib/auth';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,15 +8,14 @@ export default async function MarketplacePage() {
   if (!token) return null;
   const payload = verifyToken(token) as UserPayload;
 
-  const db = getDb();
-  const listings = db.prepare(`
+  const listings = await sql`
     SELECT ml.*, u.display_name as seller_name, u.collector_number as seller_number
     FROM marketplace_listings ml
     JOIN users u ON ml.seller_id = u.id
     WHERE ml.status = 'active'
     ORDER BY ml.created_at DESC
     LIMIT 20
-  `).all() as any[];
+  ` as any[];
 
   return (
     <div className="xm-container py-6 space-y-6">
@@ -75,15 +74,15 @@ export default async function MarketplacePage() {
   );
 }
 
-function ListingItemDetails({ listing }: { listing: any }) {
+async function ListingItemDetails({ listing }: { listing: any }) {
   if (!listing.item_id) return null;
 
   try {
-    const db = getDb();
     let item;
 
     if (listing.item_type === 'card') {
-      item = db.prepare('SELECT * FROM cards WHERE id = ?').get(listing.item_id) as any;
+      const rows = await sql`SELECT * FROM cards WHERE id = ${listing.item_id}` as any[];
+      item = rows[0] || null;
       if (!item) return <p className="text-xs text-gray-500">Item unavailable</p>;
       return (
         <div className="flex items-center gap-3">
@@ -97,7 +96,8 @@ function ListingItemDetails({ listing }: { listing: any }) {
     }
 
     if (listing.item_type === 'eticket') {
-      item = db.prepare('SELECT * FROM etickets WHERE id = ?').get(listing.item_id) as any;
+      const rows = await sql`SELECT * FROM etickets WHERE id = ${listing.item_id}` as any[];
+      item = rows[0] || null;
       if (!item) return <p className="text-xs text-gray-500">Item unavailable</p>;
       return (
         <div className="flex items-center gap-3">

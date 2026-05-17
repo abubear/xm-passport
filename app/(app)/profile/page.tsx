@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken, UserPayload } from '@/lib/auth';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 import { RANK_NAMES, RANK_THRESHOLDS, PointsTransaction } from '@/lib/types';
 import { clearAuthCookie } from '@/lib/auth';
 import { redirect } from 'next/navigation';
@@ -12,18 +12,20 @@ export default async function ProfilePage() {
   if (!token) return null;
   const payload = verifyToken(token) as UserPayload;
 
-  const db = getDb();
-  const user = db.prepare(`
+  const userRows = await sql(`
     SELECT id, email, phone, display_name, collector_number, avatar_url,
            bio, location, collection_prefs, public_profile, social_links,
            rank, total_points, rank_points, collection_count, verified_collector,
            auth_provider, created_at
-    FROM users WHERE id = ?
-  `).get(payload.id) as any;
+    FROM users WHERE id = $1
+  `, [payload.id]);
+  const user = userRows[0] || null;
 
-  const transactions = db.prepare(
-    'SELECT * FROM points_transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 20'
-  ).all(payload.id) as PointsTransaction[];
+  const transactionRows = await sql(
+    'SELECT * FROM points_transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20',
+    [payload.id]
+  );
+  const transactions = transactionRows as PointsTransaction[];
 
   function rankProgress(points: number) {
     const ranks = ['bronze', 'silver', 'gold', 'platinum', 'master'] as const;
@@ -43,7 +45,8 @@ export default async function ProfilePage() {
   }
 
   const progress = rankProgress(user?.total_points || 0);
-  const cards = db.prepare('SELECT COUNT(*) as count FROM cards WHERE owner_id = ?').get(payload.id) as { count: number };
+  const cardRows = await sql('SELECT COUNT(*) as count FROM cards WHERE owner_id = $1', [payload.id]);
+  const cards = (cardRows[0] as { count: number }) || { count: 0 };
   const collectionPrefs: string[] = (() => { try { return JSON.parse(user?.collection_prefs || '[]'); } catch { return []; } })();
   const socialLinks: Record<string, string> = (() => { try { return JSON.parse(user?.social_links || '{}'); } catch { return {}; } })();
   const languageNames: Record<string, string> = { en: 'English', 'zh-CN': '简体中文', 'zh-TW': '繁體中文' };
@@ -116,7 +119,7 @@ export default async function ProfilePage() {
           <p className="text-[10px] text-gray-500">Total Points</p>
         </div>
         <div className="xm-card text-center py-3">
-          <p className="text-xl font-bold text-xm-gold">{cards.count}</p>
+          <p className="text-xl font-bold text-xm-gold">{Number(cards.count)}</p>
           <p className="text-[10px] text-gray-500">Cards Collected</p>
         </div>
         <div className="xm-card text-center py-3">

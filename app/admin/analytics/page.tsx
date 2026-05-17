@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -10,22 +10,23 @@ export default async function AdminAnalytics() {
   const payload = verifyToken(token);
   if (!payload || !payload.is_admin) redirect('/home');
 
-  const db = getDb();
-
-  const totalUsers = (db.prepare('SELECT COUNT(*) as c FROM users').get() as any).c;
-  const totalCards = (db.prepare('SELECT COUNT(*) as c FROM cards').get() as any).c;
-  const scannedCards = (db.prepare("SELECT COUNT(*) as c FROM cards WHERE owner_id IS NOT NULL").get() as any).c;
-  const totalPoints = (db.prepare('SELECT SUM(total_points) as s FROM users').get() as any).s || 0;
-  const totalListings = (db.prepare('SELECT COUNT(*) as c FROM marketplace_listings').get() as any).c;
-  const soldListings = (db.prepare("SELECT COUNT(*) as c FROM marketplace_listings WHERE status='sold'").get() as any).c;
-  const rankDist = db.prepare('SELECT rank, COUNT(*) as c FROM users GROUP BY rank').all() as any[];
-  const rarityDist = db.prepare('SELECT rarity, COUNT(*) as c FROM cards GROUP BY rarity').all() as any[];
-  const recentScans = db.prepare(`
+  const totalUsers = (await sql`SELECT COUNT(*) as c FROM users`)[0].c;
+  const totalCards = (await sql`SELECT COUNT(*) as c FROM cards`)[0].c;
+  const scannedCards = (await sql`SELECT COUNT(*) as c FROM cards WHERE owner_id IS NOT NULL`)[0].c;
+  const totalPoints = (await sql`SELECT SUM(total_points) as s FROM users`)[0].s || 0;
+  const totalListings = (await sql`SELECT COUNT(*) as c FROM marketplace_listings`)[0].c;
+  const soldListings = (await sql`SELECT COUNT(*) as c FROM marketplace_listings WHERE status='sold'`)[0].c;
+  const rankDist = await sql`SELECT rank, COUNT(*) as c FROM users GROUP BY rank`;
+  const rarityDist = await sql`SELECT rarity, COUNT(*) as c FROM cards GROUP BY rarity`;
+  const recentScans = await sql`
     SELECT pt.*, u.display_name FROM points_transactions pt
     JOIN users u ON pt.user_id = u.id
     WHERE pt.reason = 'card_scan'
     ORDER BY pt.created_at DESC LIMIT 10
-  `).all() as any[];
+  `;
+
+  const revenueResult = await sql`SELECT SUM(price) as s FROM marketplace_listings WHERE status='sold'`;
+  const revenue = (revenueResult[0]?.s)?.toLocaleString() || 0;
 
   return (
     <div className="space-y-8">
@@ -37,7 +38,7 @@ export default async function AdminAnalytics() {
           { label: 'Scan Rate', value: `${Math.round((scannedCards / totalCards) * 100)}%`, sub: `${scannedCards}/${totalCards}` },
           { label: 'Avg Points/User', value: Math.round(totalPoints / totalUsers).toLocaleString(), sub: '' },
           { label: 'Sell-Through', value: `${Math.round((soldListings / Math.max(totalListings, 1)) * 100)}%`, sub: `${soldListings}/${totalListings}` },
-          { label: 'Total Revenue', value: `$${db.prepare("SELECT SUM(price) as s FROM marketplace_listings WHERE status='sold'").get() ? (db.prepare("SELECT SUM(price) as s FROM marketplace_listings WHERE status='sold'").get() as any).s?.toLocaleString() || 0 : 0}`, sub: '' },
+          { label: 'Total Revenue', value: `$${revenue}`, sub: '' },
         ].map((m) => (
           <div key={m.label} className="bg-xm-card rounded-xl p-4 border border-gray-800">
             <p className="text-xl font-bold text-xm-gold">{m.value}</p>
@@ -52,7 +53,7 @@ export default async function AdminAnalytics() {
         <div>
           <h2 className="text-sm font-semibold mb-3">Rank Distribution</h2>
           <div className="space-y-2">
-            {rankDist.map((r: any) => (
+            {(rankDist as any[]).map((r: any) => (
               <div key={r.rank} className="flex items-center justify-between">
                 <span className="text-xs text-gray-400">{r.rank}</span>
                 <div className="flex items-center gap-2">
@@ -69,7 +70,7 @@ export default async function AdminAnalytics() {
         <div>
           <h2 className="text-sm font-semibold mb-3">Rarity Distribution</h2>
           <div className="space-y-2">
-            {rarityDist.map((r: any) => (
+            {(rarityDist as any[]).map((r: any) => (
               <div key={r.rarity} className="flex items-center justify-between">
                 <span className="text-xs text-gray-400">{r.rarity}</span>
                 <div className="flex items-center gap-2">
@@ -88,7 +89,7 @@ export default async function AdminAnalytics() {
       <div>
         <h2 className="text-sm font-semibold mb-3">Recent Scans</h2>
         <div className="space-y-2">
-          {recentScans.map((scan: any) => (
+          {(recentScans as any[]).map((scan: any) => (
             <div key={scan.id} className="flex items-center justify-between py-2 border-b border-gray-800/50">
               <div>
                 <span className="text-xs">{scan.display_name}</span>

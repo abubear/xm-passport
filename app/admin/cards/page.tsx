@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -10,15 +10,14 @@ export default async function AdminCards() {
   const payload = verifyToken(token);
   if (!payload || !payload.is_admin) redirect('/home');
 
-  const db = getDb();
-  const cards = db.prepare(`
+  const cards = await sql`
     SELECT c.*, u.display_name as owner_name, u.collector_number as owner_number
     FROM cards c LEFT JOIN users u ON c.owner_id = u.id
     ORDER BY c.created_at DESC
-  `).all() as any[];
+  `;
 
   const total = cards.length;
-  const scanned = cards.filter((c: any) => c.owner_id).length;
+  const scanned = (cards as any[]).filter((c: any) => c.owner_id).length;
 
   return (
     <div className="space-y-6">
@@ -49,7 +48,7 @@ export default async function AdminCards() {
             </tr>
           </thead>
           <tbody>
-            {cards.map((card) => (
+            {(cards as any[]).map((card) => (
               <tr key={card.id} className="border-b border-gray-800/50 hover:bg-xm-dark/50">
                 <td className="p-3 text-xs text-xm-gold font-mono">{card.card_code}</td>
                 <td className="p-3 text-xs">{card.product_name}</td>

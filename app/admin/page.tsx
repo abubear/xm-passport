@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -10,14 +10,13 @@ export default async function AdminDashboard() {
   const payload = verifyToken(token);
   if (!payload || !payload.is_admin) redirect('/home');
 
-  const db = getDb();
-  const users = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
-  const cards = db.prepare('SELECT COUNT(*) as count FROM cards').get() as { count: number };
-  const scannedCards = db.prepare("SELECT COUNT(*) as count FROM cards WHERE owner_id IS NOT NULL").get() as { count: number };
-  const etickets = db.prepare('SELECT COUNT(*) as count FROM etickets').get() as { count: number };
-  const listings = db.prepare("SELECT COUNT(*) as count FROM marketplace_listings WHERE status = 'active'").get() as { count: number };
-  const totalPoints = db.prepare('SELECT SUM(total_points) as total FROM users').get() as { total: number };
-  const products = db.prepare('SELECT COUNT(*) as count FROM products').get() as { count: number };
+  const users = (await sql`SELECT COUNT(*) as count FROM users`)[0] as { count: number };
+  const cards = (await sql`SELECT COUNT(*) as count FROM cards`)[0] as { count: number };
+  const scannedCards = (await sql`SELECT COUNT(*) as count FROM cards WHERE owner_id IS NOT NULL`)[0] as { count: number };
+  const etickets = (await sql`SELECT COUNT(*) as count FROM etickets`)[0] as { count: number };
+  const listings = (await sql`SELECT COUNT(*) as count FROM marketplace_listings WHERE status = 'active'`)[0] as { count: number };
+  const totalPoints = (await sql`SELECT SUM(total_points) as total FROM users`)[0] as { total: number };
+  const products = (await sql`SELECT COUNT(*) as count FROM products`)[0] as { count: number };
 
   const stats = [
     { label: 'Users', value: users.count },
@@ -28,6 +27,8 @@ export default async function AdminDashboard() {
     { label: 'Products', value: products.count },
     { label: 'Total Points', value: (totalPoints.total || 0).toLocaleString() },
   ];
+
+  const recentUsers = await sql`SELECT * FROM users ORDER BY created_at DESC LIMIT 5`;
 
   return (
     <div className="space-y-8">
@@ -61,7 +62,7 @@ export default async function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {(db.prepare('SELECT * FROM users ORDER BY created_at DESC LIMIT 5').all() as any[]).map((user) => (
+              {(recentUsers as any[]).map((user) => (
                 <tr key={user.id} className="border-b border-gray-800/50">
                   <td className="p-3 text-xs text-xm-gold">{user.collector_number}</td>
                   <td className="p-3 text-xs">{user.display_name}</td>

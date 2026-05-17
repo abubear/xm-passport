@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken, UserPayload } from '@/lib/auth';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 import { ETicket } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -9,14 +9,8 @@ export default async function RedeemPage() {
   if (!token) return null;
   const payload = verifyToken(token) as UserPayload;
 
-  const db = getDb();
-  const etickets = db.prepare(`
-    SELECT * FROM etickets WHERE owner_id = ? AND status = 'active' ORDER BY created_at DESC
-  `).all(payload.id) as ETicket[];
-
-  const redeemedTickets = db.prepare(`
-    SELECT * FROM etickets WHERE owner_id = ? AND status = 'redeemed' ORDER BY redemption_date DESC
-  `).all(payload.id) as ETicket[];
+  const etickets = await sql`SELECT * FROM etickets WHERE owner_id = ${payload.id} AND status = 'active' ORDER BY created_at DESC` as ETicket[];
+  const redeemedTickets = await sql`SELECT * FROM etickets WHERE owner_id = ${payload.id} AND status = 'redeemed' ORDER BY redemption_date DESC` as ETicket[];
 
   return (
     <div className="xm-container py-6 space-y-6">

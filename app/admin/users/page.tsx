@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { getDb } from '@/lib/db';
+import { sql } from '@/lib/db';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -10,8 +10,7 @@ export default async function AdminUsers() {
   const payload = verifyToken(token);
   if (!payload || !payload.is_admin) redirect('/home');
 
-  const db = getDb();
-  const users = db.prepare('SELECT * FROM users ORDER BY created_at DESC').all() as any[];
+  const users = await sql`SELECT * FROM users ORDER BY created_at DESC`;
 
   return (
     <div className="space-y-6">
@@ -32,7 +31,7 @@ export default async function AdminUsers() {
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => (
+            {(users as any[]).map((user) => (
               <tr key={user.id} className="border-b border-gray-800/50 hover:bg-xm-dark/50">
                 <td className="p-3 text-xs text-xm-gold font-mono">{user.collector_number}</td>
                 <td className="p-3 text-xs">{user.display_name}</td>
