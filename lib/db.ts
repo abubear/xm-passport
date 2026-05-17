@@ -3,7 +3,18 @@ import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 
 const connectionString = process.env.POSTGRES_URL!;
-export const sql = neon(connectionString);
+const _sql = neon(connectionString);
+
+// Neon returns a tagged-template function.
+// Template literal: await sql`SELECT * FROM users WHERE id = ${id}`
+// Function call (runtime): await sql('SELECT ... WHERE id = $1', [id])
+// Types only support template literals, so export both:
+export const sql = _sql;
+
+/** Typed wrapper for parameterized queries: await query('SELECT * FROM users WHERE id = $1', [id]) */
+export async function query(text: string, params?: any[]) {
+  return (_sql as any)(text, params);
+}
 
 let initialized = false;
 

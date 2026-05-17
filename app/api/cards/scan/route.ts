@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { sql } from '@/lib/db';
+import { sql, query } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { RARITY_POINTS, RANK_THRESHOLDS } from '@/lib/types';
 
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Find card
-    const cardRows = await sql('SELECT * FROM cards WHERE card_code = $1', [card_code]);
+    const cardRows = await query('SELECT * FROM cards WHERE card_code = $1', [card_code]);
     const card = cardRows[0] || null;
 
     if (!card) {
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user already scanned this card
-    const existingRows = await sql('SELECT id FROM cards WHERE card_code = $1 AND owner_id = $2', [card_code, payload.id]);
+    const existingRows = await query('SELECT id FROM cards WHERE card_code = $1 AND owner_id = $2', [card_code, payload.id]);
     if (existingRows.length > 0) {
       return NextResponse.json({ error: 'Card already in your vault' }, { status: 409 });
     }
@@ -62,18 +62,18 @@ export async function POST(req: NextRequest) {
     `, [points, points, payload.id]);
 
     // Check rank progression
-    const userRows = await sql('SELECT total_points, rank FROM users WHERE id = $1', [payload.id]);
+    const userRows = await query('SELECT total_points, rank FROM users WHERE id = $1', [payload.id]);
     const user = userRows[0] || null;
     const newRank = getRankForPoints(user.total_points);
     if (newRank !== user.rank) {
-      await sql('UPDATE users SET rank = $1 WHERE id = $2', [newRank, payload.id]);
+      await query('UPDATE users SET rank = $1 WHERE id = $2', [newRank, payload.id]);
     }
 
     // Update journey progress
     await updateJourneys(payload.id, card_code);
 
     // Get updated card
-    const updatedCardRows = await sql('SELECT * FROM cards WHERE id = $1', [card.id]);
+    const updatedCardRows = await query('SELECT * FROM cards WHERE id = $1', [card.id]);
     const updatedCard = updatedCardRows[0] || null;
 
     return NextResponse.json({
@@ -96,7 +96,7 @@ function getRankForPoints(points: number): string {
 }
 
 async function updateJourneys(userId: string, cardCode: string) {
-  const journeys = await sql('SELECT * FROM collection_journeys');
+  const journeys = await query('SELECT * FROM collection_journeys');
 
   for (const journey of journeys) {
     const required: string[] = JSON.parse(journey.required_items || '[]');
@@ -125,7 +125,7 @@ async function updateJourneys(userId: string, cardCode: string) {
     progress[cardCode] = true;
     const collected = Object.keys(progress).length;
 
-    await sql('UPDATE user_journeys SET progress = $1 WHERE id = $2',
+    await query('UPDATE user_journeys SET progress = $1 WHERE id = $2',
       [JSON.stringify(progress), userJourney.id]);
 
     // Check completion

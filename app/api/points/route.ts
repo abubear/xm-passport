@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { sql } from '@/lib/db';
+import { sql, query } from '@/lib/db';
 
 export async function GET() {
   const token = getAuthToken();
@@ -15,7 +15,7 @@ export async function GET() {
       [payload.id]
     );
 
-    const userRows = await sql('SELECT total_points, rank, rank_points FROM users WHERE id = $1', [payload.id]);
+    const userRows = await query('SELECT total_points, rank, rank_points FROM users WHERE id = $1', [payload.id]);
     const user = userRows[0] || null;
 
     return NextResponse.json({ transactions, points: user });

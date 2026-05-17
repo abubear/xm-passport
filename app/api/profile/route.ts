@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { sql } from '@/lib/db';
+import { sql, query } from '@/lib/db';
 
 // GET — fetch current user profile
 export async function GET() {
@@ -20,8 +20,8 @@ export async function GET() {
     `, [payload.id]);
     const user = userRows[0] || null;
 
-    const cardRows = await sql('SELECT COUNT(*) as count FROM cards WHERE owner_id = $1', [payload.id]);
-    const eticketRows = await sql('SELECT COUNT(*) as count FROM etickets WHERE owner_id = $1', [payload.id]);
+    const cardRows = await query('SELECT COUNT(*) as count FROM cards WHERE owner_id = $1', [payload.id]);
+    const eticketRows = await query('SELECT COUNT(*) as count FROM etickets WHERE owner_id = $1', [payload.id]);
 
     return NextResponse.json({ user, stats: { cards: Number(cardRows[0]?.count), etickets: Number(eticketRows[0]?.count) } });
   } catch (err) {

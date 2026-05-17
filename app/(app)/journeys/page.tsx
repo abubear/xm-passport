@@ -1,5 +1,5 @@
 import { getAuthToken, verifyToken, UserPayload } from '@/lib/auth';
-import { sql } from '@/lib/db';
+import { sql, query } from '@/lib/db';
 import { CollectionJourney } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -9,12 +9,12 @@ export default async function JourneysPage() {
   if (!token) return null;
   const payload = verifyToken(token) as UserPayload;
 
-  const journeyRows = await sql('SELECT * FROM collection_journeys');
+  const journeyRows = await query('SELECT * FROM collection_journeys');
   const journeys = journeyRows as CollectionJourney[];
-  const userCardRows = await sql('SELECT card_code FROM cards WHERE owner_id = $1', [payload.id]);
+  const userCardRows = await query('SELECT card_code FROM cards WHERE owner_id = $1', [payload.id]);
   const userCards = userCardRows as { card_code: string }[];
   const userCardCodes = new Set(userCards.map((c: any) => c.card_code));
-  const userJourneyRows = await sql('SELECT * FROM user_journeys WHERE user_id = $1', [payload.id]);
+  const userJourneyRows = await query('SELECT * FROM user_journeys WHERE user_id = $1', [payload.id]);
   const userJourneys = userJourneyRows as any[];
 
   return (

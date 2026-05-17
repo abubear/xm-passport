@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { sql } from '@/lib/db';
+import { sql, query } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   const token = getAuthToken();
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   try {
     const { ticket_id } = await req.json();
 
-    const ticketRows = await sql('SELECT * FROM etickets WHERE id = $1 AND owner_id = $2', [ticket_id, payload.id]);
+    const ticketRows = await query('SELECT * FROM etickets WHERE id = $1 AND owner_id = $2', [ticket_id, payload.id]);
     const ticket = ticketRows[0] || null;
 
     if (!ticket) {
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       WHERE id = $1
     `, [ticket_id]);
 
-    const updatedRows = await sql('SELECT * FROM etickets WHERE id = $1', [ticket_id]);
+    const updatedRows = await query('SELECT * FROM etickets WHERE id = $1', [ticket_id]);
     const updated = updatedRows[0] || null;
 
     return NextResponse.json({ ticket: updated, message: 'E-ticket redeemed successfully' });

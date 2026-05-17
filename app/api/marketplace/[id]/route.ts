@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { sql } from '@/lib/db';
+import { sql, query } from '@/lib/db';
 
 // PUT - buy listing
 export async function PUT(
@@ -14,7 +14,7 @@ export async function PUT(
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const listingRows = await sql('SELECT * FROM marketplace_listings WHERE id = $1', [params.id]);
+    const listingRows = await query('SELECT * FROM marketplace_listings WHERE id = $1', [params.id]);
     const listing = listingRows[0] || null;
 
     if (!listing) {
@@ -37,12 +37,12 @@ export async function PUT(
 
     // Transfer item ownership
     if (listing.item_type === 'card') {
-      await sql('UPDATE cards SET owner_id = $1 WHERE id = $2', [payload.id, listing.item_id]);
+      await query('UPDATE cards SET owner_id = $1 WHERE id = $2', [payload.id, listing.item_id]);
     } else if (listing.item_type === 'eticket') {
-      await sql('UPDATE etickets SET owner_id = $1 WHERE id = $2', [payload.id, listing.item_id]);
+      await query('UPDATE etickets SET owner_id = $1 WHERE id = $2', [payload.id, listing.item_id]);
     }
 
-    const updatedRows = await sql('SELECT * FROM marketplace_listings WHERE id = $1', [params.id]);
+    const updatedRows = await query('SELECT * FROM marketplace_listings WHERE id = $1', [params.id]);
     const updated = updatedRows[0] || null;
 
     return NextResponse.json({ listing: updated, message: 'Purchase complete. Item transferred to your vault.' });
@@ -64,7 +64,7 @@ export async function DELETE(
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const listingRows = await sql('SELECT * FROM marketplace_listings WHERE id = $1', [params.id]);
+    const listingRows = await query('SELECT * FROM marketplace_listings WHERE id = $1', [params.id]);
     const listing = listingRows[0] || null;
 
     if (!listing) {

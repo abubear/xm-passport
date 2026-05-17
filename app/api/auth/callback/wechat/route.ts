@@ -3,7 +3,7 @@
 // then fetches user info, creates/finds user, sets JWT cookie.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { sql } from '@/lib/db';
+import { sql, query } from '@/lib/db';
 import { signToken, setAuthCookie } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
 
     if (!user) {
       const id = uuidv4();
-      const countRows = await sql('SELECT COUNT(*) as count FROM users');
+      const countRows = await query('SELECT COUNT(*) as count FROM users');
       const count = Number(countRows[0]?.count || 0);
       const collectorNumber = `XM-${String(count + 1).padStart(5, '0')}`;
 
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
         VALUES ($1, $2, $3, 'wechat', $4, $5, 'bronze')
       `, [id, `WeChat User ${collectorNumber}`, collectorNumber, openid, unionid]);
 
-      const newUserRows = await sql('SELECT * FROM users WHERE id = $1', [id]);
+      const newUserRows = await query('SELECT * FROM users WHERE id = $1', [id]);
       user = newUserRows[0] || null;
     }
 

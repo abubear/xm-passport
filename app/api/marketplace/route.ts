@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthToken, verifyToken } from '@/lib/auth';
-import { sql } from '@/lib/db';
+import { sql, query } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 
 // GET - list marketplace listings
@@ -47,10 +47,10 @@ export async function POST(req: NextRequest) {
     // Verify ownership
     let item;
     if (item_type === 'card') {
-      const rows = await sql('SELECT * FROM cards WHERE id = $1 AND owner_id = $2', [item_id, payload.id]);
+      const rows = await query('SELECT * FROM cards WHERE id = $1 AND owner_id = $2', [item_id, payload.id]);
       item = rows[0] || null;
     } else if (item_type === 'eticket') {
-      const rows = await sql('SELECT * FROM etickets WHERE id = $1 AND owner_id = $2', [item_id, payload.id]);
+      const rows = await query('SELECT * FROM etickets WHERE id = $1 AND owner_id = $2', [item_id, payload.id]);
       item = rows[0] || null;
     }
 
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
       [id, payload.id, item_type, item_id, price]
     );
 
-    const listingRows = await sql('SELECT * FROM marketplace_listings WHERE id = $1', [id]);
+    const listingRows = await query('SELECT * FROM marketplace_listings WHERE id = $1', [id]);
     const listing = listingRows[0] || null;
 
     return NextResponse.json({ listing }, { status: 201 });

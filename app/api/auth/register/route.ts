@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sql } from '@/lib/db';
+import { sql, query } from '@/lib/db';
 import { hashPassword, signToken, setAuthCookie } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -23,14 +23,14 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
       }
 
-      const existingRows = await sql('SELECT id FROM users WHERE email = $1', [email]);
+      const existingRows = await query('SELECT id FROM users WHERE email = $1', [email]);
       if (existingRows.length > 0) {
         return NextResponse.json({ error: 'Email already registered' }, { status: 409 });
       }
 
       const id = uuidv4();
       const passwordHash = await hashPassword(password);
-      const countRows = await sql('SELECT COUNT(*) as count FROM users');
+      const countRows = await query('SELECT COUNT(*) as count FROM users');
       const count = countRows[0] as { count: number };
       const collectorNumber = `XM-${String(Number(count.count) + 1).padStart(5, '0')}`;
 
@@ -53,13 +53,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Phone number required' }, { status: 400 });
       }
 
-      const existingRows = await sql('SELECT id FROM users WHERE phone = $1', [phone]);
+      const existingRows = await query('SELECT id FROM users WHERE phone = $1', [phone]);
       if (existingRows.length > 0) {
         return NextResponse.json({ error: 'Phone already registered' }, { status: 409 });
       }
 
       const id = uuidv4();
-      const countRows = await sql('SELECT COUNT(*) as count FROM users');
+      const countRows = await query('SELECT COUNT(*) as count FROM users');
       const count = countRows[0] as { count: number };
       const collectorNumber = `XM-${String(Number(count.count) + 1).padStart(5, '0')}`;
 
@@ -94,21 +94,21 @@ export async function POST(req: NextRequest) {
 
       // For WeChat, also check unionid
       if (provider === 'wechat' && wechat_unionid) {
-        const existingByUnionRows = await sql('SELECT id FROM users WHERE wechat_unionid = $1', [wechat_unionid]);
+        const existingByUnionRows = await query('SELECT id FROM users WHERE wechat_unionid = $1', [wechat_unionid]);
         if (existingByUnionRows.length > 0) {
           return NextResponse.json({ error: 'WeChat account already linked' }, { status: 409 });
         }
       }
 
       const id = uuidv4();
-      const countRows = await sql('SELECT COUNT(*) as count FROM users');
+      const countRows = await query('SELECT COUNT(*) as count FROM users');
       const count = countRows[0] as { count: number };
       const collectorNumber = `XM-${String(Number(count.count) + 1).padStart(5, '0')}`;
 
       // Social signup may also provide email
       const socialEmail = email || null;
       if (socialEmail) {
-        const existingEmailRows = await sql('SELECT id FROM users WHERE email = $1', [socialEmail]);
+        const existingEmailRows = await query('SELECT id FROM users WHERE email = $1', [socialEmail]);
         if (existingEmailRows.length > 0) {
           return NextResponse.json({ error: 'Email already registered' }, { status: 409 });
         }

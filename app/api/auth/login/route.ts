@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sql } from '@/lib/db';
+import { sql, query } from '@/lib/db';
 import { comparePassword, signToken, setAuthCookie } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
       }
 
-      const rows = await sql('SELECT * FROM users WHERE email = $1', [email]);
+      const rows = await query('SELECT * FROM users WHERE email = $1', [email]);
       const user = rows[0] || null;
       if (!user) {
         return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Phone number required' }, { status: 400 });
       }
 
-      const rows = await sql('SELECT * FROM users WHERE phone = $1 AND auth_provider = $2', [phone, 'phone']);
+      const rows = await query('SELECT * FROM users WHERE phone = $1 AND auth_provider = $2', [phone, 'phone']);
       const user = rows[0] || null;
       if (!user) {
         return NextResponse.json({ error: 'Phone not registered' }, { status: 401 });
