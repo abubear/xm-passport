@@ -1,6 +1,7 @@
 import { getAuthToken, verifyToken, UserPayload } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { CollectionJourney } from '@/lib/types';
+import { getGradientCSS } from '@/lib/gradient-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,12 @@ export default async function JourneysPage() {
 
       {journeys.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-5xl mb-3">🗺️</div>
+          <div
+            className="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center mb-3 overflow-hidden"
+            style={{ background: getGradientCSS('empty-journeys', 'product') }}
+          >
+            <span className="text-3xl text-white/50">🗺️</span>
+          </div>
           <p className="text-sm text-gray-500">No journeys available</p>
         </div>
       ) : (

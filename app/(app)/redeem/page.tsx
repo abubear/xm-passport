@@ -1,6 +1,7 @@
 import { getAuthToken, verifyToken, UserPayload } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { ETicket } from '@/lib/types';
+import { getGradientCSS } from '@/lib/gradient-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,12 @@ export default async function RedeemPage() {
       {/* Active E-Tickets */}
       {etickets.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-5xl mb-3">🎫</div>
+          <div
+            className="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center mb-3 overflow-hidden"
+            style={{ background: getGradientCSS('empty-redeem', 'eticket') }}
+          >
+            <span className="text-3xl text-white/50">⏳</span>
+          </div>
           <p className="text-sm text-gray-500">No active e-tickets</p>
           <p className="text-xs text-gray-600 mt-1">Reserve statues from Drops to get e-tickets</p>
         </div>
@@ -31,7 +37,12 @@ export default async function RedeemPage() {
             {etickets.map((ticket) => (
               <div key={ticket.id} className="xm-card-gold rounded-2xl p-4">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 rounded-xl bg-xm-dark flex items-center justify-center text-xl">🎫</div>
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden"
+                    style={{ background: getGradientCSS(ticket.product_name, 'eticket') }}
+                  >
+                    <span className="text-white/80 font-bold">{ticket.product_name.charAt(0)}</span>
+                  </div>
                   <div>
                     <p className="text-sm font-semibold">{ticket.product_name}</p>
                     <p className="text-xs text-gray-500">{ticket.ticket_code}</p>

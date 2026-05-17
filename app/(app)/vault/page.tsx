@@ -1,6 +1,7 @@
 import { getAuthToken, verifyToken, UserPayload } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { Card, ETicket } from '@/lib/types';
+import { getGradientCSS } from '@/lib/gradient-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +40,12 @@ export default async function VaultPage() {
         <h2 className="text-sm font-semibold mb-3">Metal Cards</h2>
         {cards.length === 0 ? (
           <div className="xm-card text-center py-8">
-            <div className="text-4xl mb-2">🃏</div>
+            <div
+              className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-3 overflow-hidden"
+              style={{ background: getGradientCSS('empty-vault', 'card') }}
+            >
+              <span className="text-white/60 font-bold text-lg">♢</span>
+            </div>
             <p className="text-sm text-gray-500">No cards yet</p>
             <p className="text-xs text-gray-600 mt-1">Tap Scan to add your first card</p>
           </div>
@@ -57,8 +63,11 @@ export default async function VaultPage() {
                     {card.rarity}
                   </span>
                 </div>
-                <div className="h-24 rounded-lg bg-xm-dark mb-2 flex items-center justify-center text-3xl">
-                  🎴
+                <div
+                  className="h-24 rounded-lg mb-2 flex items-center justify-center overflow-hidden"
+                  style={{ background: getGradientCSS(card.product_name, 'card') }}
+                >
+                  <span className="text-white/60 font-bold text-lg">{card.product_name.charAt(0)}</span>
                 </div>
                 <p className="text-xs font-medium truncate">{card.product_name}</p>
                 <p className="text-[10px] text-gray-500">{card.ip}</p>

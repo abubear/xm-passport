@@ -4,6 +4,7 @@ import { RANK_NAMES, RANK_THRESHOLDS, PointsTransaction } from '@/lib/types';
 import { clearAuthCookie } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import { getGradientCSS } from '@/lib/gradient-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +47,10 @@ export default async function ProfilePage() {
     <div className="xm-container py-6 space-y-6 page-content">
       {/* Profile Header */}
       <div className="text-center">
-        <div className="w-24 h-24 mx-auto rounded-full bg-xm-card border-2 border-xm-gold/30 flex items-center justify-center text-3xl font-bold text-xm-gold mb-3 relative">
+        <div
+          className="w-24 h-24 mx-auto rounded-full flex items-center justify-center text-3xl font-bold text-white mb-3 relative overflow-hidden"
+          style={{ background: getGradientCSS(user?.display_name || 'profile', 'card') }}
+        >
           {user?.display_name?.charAt(0)?.toUpperCase()}
           {user?.verified_collector ? (
             <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-green-500 flex items-center justify-center text-xs text-white">✓</span>

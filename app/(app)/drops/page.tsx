@@ -1,6 +1,7 @@
 import { getAuthToken, verifyToken, UserPayload } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { Product } from '@/lib/types';
+import { getGradientCSS } from '@/lib/gradient-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,12 @@ export default async function DropsPage() {
 
       {products.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-5xl mb-3">📦</div>
+          <div
+            className="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center mb-3 overflow-hidden"
+            style={{ background: getGradientCSS('empty-drops', 'product') }}
+          >
+            <span className="text-3xl text-white/50">⏳</span>
+          </div>
           <p className="text-sm text-gray-500">No drops available</p>
           <p className="text-xs text-gray-600 mt-1">Check back for upcoming releases</p>
         </div>
@@ -27,8 +33,11 @@ export default async function DropsPage() {
           {products.map((product) => (
             <div key={product.id} className="xm-card">
               <div className="flex items-start gap-4">
-                <div className="w-20 h-20 rounded-xl bg-xm-dark flex items-center justify-center text-3xl flex-shrink-0">
-                  🗿
+                <div
+                  className="w-20 h-20 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden"
+                  style={{ background: getGradientCSS(product.name, 'product') }}
+                >
+                  <span className="text-xl font-bold text-white/80">{product.name.charAt(0)}{product.ip?.charAt(0)}</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">

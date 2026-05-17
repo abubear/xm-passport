@@ -1,6 +1,7 @@
 import { getAuthToken, verifyToken, UserPayload } from '@/lib/auth';
 import { query} from '@/lib/db';
 import { RANK_NAMES, RANK_THRESHOLDS, Card, CollectionJourney } from '@/lib/types';
+import { getGradientCSS } from '@/lib/gradient-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,8 +66,11 @@ export default async function HomePage() {
           <h1 className="text-xl font-bold">{user?.display_name}</h1>
           <p className="text-xs text-gray-600">{user?.collector_number}</p>
         </div>
-        <div className="w-10 h-10 rounded-full bg-xm-card flex items-center justify-center text-xm-gold font-bold text-sm">
-          {user?.display_name?.charAt(0)?.toUpperCase()}
+        <div
+          className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm overflow-hidden"
+          style={{ background: getGradientCSS(user?.display_name || 'user', 'card') }}
+        >
+          <span className="text-white/90">{user?.display_name?.charAt(0)?.toUpperCase()}</span>
         </div>
       </div>
 
@@ -126,13 +130,17 @@ export default async function HomePage() {
             {cards.slice(0, 5).map((card) => (
               <div
                 key={card.id}
-                className={`rarity-${card.rarity} flex-shrink-0 w-28 h-36 rounded-xl p-2 flex flex-col justify-end`}
-                style={{
-                  background: `linear-gradient(180deg, transparent 40%, rgba(10,10,10,0.9) 100%), var(--xm-card)`,
-                }}
+                className={`rarity-${card.rarity} flex-shrink-0 w-28 h-36 rounded-xl p-2 flex flex-col justify-end relative overflow-hidden`}
               >
-                <p className="text-xs font-medium truncate">{card.product_name}</p>
-                <p className="text-[10px] text-gray-400">{card.ip}</p>
+                <div
+                  className="absolute inset-0 rounded-xl"
+                  style={{ background: getGradientCSS(card.product_name, 'card') }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent rounded-xl" />
+                <div className="relative z-10">
+                  <p className="text-xs font-medium truncate text-white">{card.product_name}</p>
+                  <p className="text-[10px] text-white/60">{card.ip}</p>
+                </div>
               </div>
             ))}
           </div>

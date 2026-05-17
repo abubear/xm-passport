@@ -1,5 +1,6 @@
 import { getAuthToken, verifyToken, UserPayload } from '@/lib/auth';
 import { query } from '@/lib/db';
+import { getGradientCSS, getGradientAccent } from '@/lib/gradient-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +30,12 @@ export default async function MarketplacePage() {
 
       {listings.length === 0 ? (
         <div className="text-center py-16">
-          <div className="text-5xl mb-4">📦</div>
+          <div
+            className="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center mb-4 overflow-hidden"
+            style={{ background: getGradientCSS('empty-marketplace', 'product') }}
+          >
+            <span className="text-3xl text-white/50">⏳</span>
+          </div>
           <p className="text-sm text-[#A1A1AA]">No listings yet</p>
           <p className="text-xs text-[#52525B] mt-2">Be the first to list a card or e-ticket</p>
         </div>
@@ -56,7 +62,12 @@ export default async function MarketplacePage() {
               {/* Bottom row: seller + buy button */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-gray-700 to-gray-400 border border-white/10" />
+                  <div
+                    className="w-6 h-6 rounded-full flex items-center justify-center overflow-hidden text-[10px] font-bold text-white/80"
+                    style={{ background: getGradientCSS(listing.seller_name || 'seller', 'card') }}
+                  >
+                    {listing.seller_name?.charAt(0)?.toUpperCase()}
+                  </div>
                   <div>
                     <p className="text-xs font-medium text-white">{listing.seller_name}</p>
                     <p className="text-[10px] text-[#52525B]">{listing.seller_number}</p>
@@ -78,8 +89,11 @@ export default async function MarketplacePage() {
 async function ListingItemImage({ listing }: { listing: any }) {
   if (!listing.item_id) {
     return (
-      <div className="item-image rounded-xl mb-0">
-        <p className="text-xs text-[#52525B]">Item unavailable</p>
+      <div
+        className="item-image rounded-xl mb-0"
+        style={{ background: getGradientCSS(listing.title || 'item', 'product') }}
+      >
+        <p className="text-xs text-white/50">Item unavailable</p>
       </div>
     );
   }
@@ -92,16 +106,21 @@ async function ListingItemImage({ listing }: { listing: any }) {
       item = rows[0] || null;
       if (!item) {
         return (
-          <div className="item-image rounded-xl mb-0">
-            <p className="text-xs text-[#52525B]">Item unavailable</p>
+          <div
+            className="item-image rounded-xl mb-0"
+            style={{ background: getGradientCSS(listing.title || 'card', 'card') }}
+          >
+            <p className="text-xs text-white/50">Item unavailable</p>
           </div>
         );
       }
       return (
-        <div className="item-image rounded-xl mb-0 flex-col gap-1">
-          <span className="text-2xl">🎴</span>
+        <div
+          className="item-image rounded-xl mb-0 flex-col gap-1"
+          style={{ background: getGradientCSS(item.product_name, 'card') }}
+        >
           <p className="text-xs text-white font-medium">{item.product_name}</p>
-          <p className="text-[10px] text-[#52525B]">{item.ip} · {item.rarity}</p>
+          <p className="text-[10px] text-white/50">{item.ip} · {item.rarity}</p>
         </div>
       );
     }
@@ -111,30 +130,41 @@ async function ListingItemImage({ listing }: { listing: any }) {
       item = rows[0] || null;
       if (!item) {
         return (
-          <div className="item-image rounded-xl mb-0">
-            <p className="text-xs text-[#52525B]">Item unavailable</p>
+          <div
+            className="item-image rounded-xl mb-0"
+            style={{ background: getGradientCSS(listing.title || 'eticket', 'eticket') }}
+          >
+            <p className="text-xs text-white/50">Item unavailable</p>
           </div>
         );
       }
       return (
-        <div className="item-image rounded-xl mb-0 flex-col gap-1">
-          <span className="text-2xl">🎫</span>
+        <div
+          className="item-image rounded-xl mb-0 flex-col gap-1"
+          style={{ background: getGradientCSS(item.product_name, 'eticket') }}
+        >
           <p className="text-xs text-white font-medium">{item.product_name}</p>
-          <p className="text-[10px] text-[#52525B]">{item.ticket_code}</p>
+          <p className="text-[10px] text-white/50">{item.ticket_code}</p>
         </div>
       );
     }
   } catch {
     return (
-      <div className="item-image rounded-xl mb-0">
-        <p className="text-xs text-[#52525B]">Item unavailable</p>
+      <div
+        className="item-image rounded-xl mb-0"
+        style={{ background: getGradientCSS(listing.title || 'item', 'product') }}
+      >
+        <p className="text-xs text-white/50">Item unavailable</p>
       </div>
     );
   }
 
   return (
-    <div className="item-image rounded-xl mb-0">
-      <p className="text-xs text-[#52525B]">Item unavailable</p>
+    <div
+      className="item-image rounded-xl mb-0"
+      style={{ background: getGradientCSS(listing.title || 'item', 'product') }}
+    >
+      <p className="text-xs text-white/50">Item unavailable</p>
     </div>
   );
 }
