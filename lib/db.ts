@@ -15,10 +15,8 @@ function ensureNeon(): ReturnType<typeof neon> {
 }
 
 // Simple wrapper that lazily creates neon connection
-function sql(strings: TemplateStringsArray | string, ...values: any[]) {
-  if (typeof strings === 'string') {
-    return (ensureNeon() as any)([strings], ...values);
-  }
+// Supports: sql`SELECT...` (tagged template with ${} interpolation)
+function sql(strings: TemplateStringsArray, ...values: any[]) {
   return (ensureNeon() as any)(strings, ...values);
 }
 // Attach .query() method for parameterized SQL
@@ -128,7 +126,7 @@ export async function migrate() {
           provider_id: 'ALTER TABLE users ADD COLUMN IF NOT EXISTS provider_id TEXT',
           wechat_unionid: 'ALTER TABLE users ADD COLUMN IF NOT EXISTS wechat_unionid TEXT',
         };
-        await sql(statements[col] as any);
+        await sql.query(statements[col]);
       } catch { /* column exists */ }
     }
     await sql`INSERT INTO _migrations (version) VALUES (2)`;
@@ -149,7 +147,7 @@ export async function migrate() {
           public_profile: 'ALTER TABLE users ADD COLUMN IF NOT EXISTS public_profile INTEGER DEFAULT 0',
           social_links: "ALTER TABLE users ADD COLUMN IF NOT EXISTS social_links TEXT DEFAULT '{}'",
         };
-        await sql(statements[col] as any);
+        await sql.query(statements[col]);
       } catch { /* exists */ }
     }
     await sql`INSERT INTO _migrations (version) VALUES (4)`;
@@ -246,7 +244,7 @@ export async function seed() {
   ];
   for (const l of listingItems) {
     try {
-      const existingList = await sql(`SELECT id FROM marketplace_listings WHERE item_id = $1`, [l.item]);
+      const existingList = await sql.query('SELECT id FROM marketplace_listings WHERE item_id = $1', [l.item]);
       if ((existingList as any).length === 0) {
         await sql`INSERT INTO marketplace_listings (id, seller_id, item_type, item_id, price, status) VALUES (${uuidv4()}, ${l.seller}, ${l.type}, ${l.item}, ${l.price}, 'active')`;
       }
